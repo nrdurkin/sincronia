@@ -129,7 +129,7 @@ export const syncManifest = async (
     logger.info("Finding and creating missing files...");
     await processMissingFiles(manifestContent);
     ConfigManager.updateManifest(manifestContent);
-  } catch (e) {
+  } catch (e: any) {
     logger.error("Encountered error while refreshing! ❌");
     logger.error(e.toString());
   }
@@ -355,7 +355,7 @@ const pushRec = async (
       }
     );
     return processPushResponse(pushRes, recSummary);
-  } catch (e) {
+  } catch (e: any) {
     const errMsg = e.message || "Too many retries";
     return { success: false, message: `${recSummary} : ${errMsg}` };
   }
@@ -505,7 +505,7 @@ const swapServerScope = async (scopeId: string): Promise<void> => {
     if (curAppUserPrefId !== "")
       await client.updateCurrentAppUserPref(scopeId, curAppUserPrefId);
     else await client.createCurrentAppUserPref(scopeId, userSysId);
-  } catch (e) {
+  } catch (e: any) {
     logger.error(e);
     throw e;
   }

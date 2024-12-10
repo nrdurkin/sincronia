@@ -317,7 +317,7 @@ export const unwrapSNResponse = async <T>(
   try {
     const resp = await clientPromise;
     return resp.data.result;
-  } catch (e) {
+  } catch (e: any) {
     logger.error("Error processing server response");
     logger.error(e);
     throw e;

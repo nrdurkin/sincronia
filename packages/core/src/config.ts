@@ -133,7 +133,7 @@ export async function getUsSincConfig(): Promise<any> {
       const projectConfig: any = (await import(usSincConfigPath)).default;
       return projectConfig;
     }
-  } catch (e) {
+  } catch (e: any) {
     logger.warn(e);
     logger.warn("Couldn't find config file. Loading default...");
     throw e;
@@ -164,7 +164,7 @@ async function loadConfig(skipConfigPath = false): Promise<Sinc.Config> {
       logger.warn("Couldn't find config file. Loading default...");
       return DEFAULT_CONFIG;
     }
-  } catch (e) {
+  } catch (e: any) {
     logger.warn(e);
     logger.warn("Couldn't find config file. Loading default...");
     return DEFAULT_CONFIG;

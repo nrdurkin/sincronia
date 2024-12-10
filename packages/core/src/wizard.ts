@@ -127,7 +127,7 @@ async function downloadApp(answers: Sinc.LoginAnswers, scope: string) {
     const config = ConfigManager.getConfig();
     const man = await unwrapSNResponse(client.getManifest(scope, config, true));
     await AppUtils.processManifest(man);
-  } catch (e) {
+  } catch (e: any) {
     logger.error(e.toString());
     throw new Error("Failed to download files!");
   }

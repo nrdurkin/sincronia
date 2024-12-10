@@ -16,9 +16,9 @@ export const constructEndpoint = (table: string, params: SysParams): string => {
       `sysparm_query=` +
         map(
           sysparm_query || {},
-          (v, k) =>
-            `${k}` + (typeof v === "object" ? `${v.op}${v.value}` : `=${v}`)
-        ).join("^")
+          (v: any, k) =>
+            `${k}` + (typeof v === "object" ? `${v.op}${v.value}` : `=${v}`),
+        ).join("^"),
     );
   }
   if (!isEmpty(sysparm_fields)) {
