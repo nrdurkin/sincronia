@@ -4,6 +4,7 @@ import rateLimit from "axios-rate-limit";
 import { wait } from "./genericUtils";
 import { logger } from "./Logger";
 import * as ConfigManager from "./config";
+import { updateRecordTrackedTime } from "./appUtils";
 
 export const retryOnErr = async <T>(
   f: () => Promise<T>,
@@ -28,7 +29,9 @@ export const retryOnErr = async <T>(
 
 export const processPushResponse = (
   response: AxiosResponse,
-  recSummary: string
+  recSummary: string,
+  table: string,
+  recordId: string
 ): Sinc.PushResult => {
   const { status } = response;
   if (status === 404) {
@@ -43,6 +46,9 @@ export const processPushResponse = (
       message: `Failed to push ${recSummary}. Recieved an unexpected response (${status})`,
     };
   }
+  const updateTime = response.data.result.sys_updated_on;
+  updateRecordTrackedTime(table, recordId, updateTime);
+
   return {
     success: true,
     message: `${recSummary} pushed successfully!`,

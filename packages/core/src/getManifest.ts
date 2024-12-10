@@ -11,9 +11,13 @@ import {
 import { getGqlQuery } from "./utils/graphQL";
 
 export const getSincConfig = (): TableData => {
-  const localConfig = JSON.parse(
-    fs.readFileSync("./sinc-conf.json", { encoding: "utf8" })
-  );
+  // console.log(fs.read);
+  // fs.readFileSync("./sinc-conf.json", { encoding: "utf8" });
+  // path.join(process.cwd(), "configs", "sinc.diff.manifest.json");
+  // const localConfig = JSON.parse(
+  //   fs.readFileSync("./sinc-conf.json", { encoding: "utf8" })
+  // );
+  const localConfig = sincConfigDefault;
   const config: TableData = {};
   forEach(localConfig, (cnf, t) => {
     if (cnf !== null) {
@@ -82,7 +86,7 @@ const getScriptRecords = ({
 }) => {
   const records: Record<
     string,
-    { files: FileItem[]; sys_id: string; name: string }
+    { files: FileItem[]; sys_id: string; name: string; sys_updated_on: string }
   > = {};
   tableRecords.forEach((record) => {
     const name = generateRecordName(record, differentiatorField, displayField);
@@ -90,6 +94,7 @@ const getScriptRecords = ({
       files: files.map(({ name, type }) => ({ name, type })),
       name: name,
       sys_id: record.sys_id.value,
+      sys_updated_on: record.sys_updated_on.value,
     };
   });
   return records;
@@ -112,7 +117,6 @@ export const ng_getManifest = async (
   tables: TableData,
   scope: string
 ): Promise<any> => {
-  console.log("Get manifest via GraphQL request");
   const data = {
     tables: {},
   };
@@ -135,6 +139,7 @@ export const ng_getManifest = async (
         "name",
         "sys_id",
         displayField,
+        "sys_updated_on",
       ]),
     };
   });

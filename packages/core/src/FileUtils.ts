@@ -130,7 +130,7 @@ export const getFileContextFromPath = (
   try {
     const { records } = tables[tableName];
     const record = records[recordName];
-    const { files, sys_id } = record;
+    const { files, sys_id, sys_updated_on } = record;
     const field = files.find((file) => file.name === targetField);
     if (!field) {
       return undefined;
@@ -143,6 +143,7 @@ export const getFileContextFromPath = (
       scope,
       tableName,
       targetField,
+      sys_updated_on,
     };
   } catch (e) {
     return undefined;

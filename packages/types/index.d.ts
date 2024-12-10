@@ -66,6 +66,7 @@ export namespace Sinc {
     sys_id: string;
     scope: string;
     fileContents?: string;
+    sys_updated_on?: string;
   }
 
   interface ServerRequestConfig {
@@ -79,11 +80,9 @@ export namespace Sinc {
   }
 
   interface PluginFunc {
-    (
-      context: FileContext,
-      content: string,
-      options: any
-    ): Promise<PluginResults>;
+    (context: FileContext, content: string, options: any): Promise<
+      PluginResults
+    >;
   }
 
   interface PluginResults {
@@ -181,6 +180,7 @@ export namespace SN {
     files: File[];
     name: string;
     sys_id: string;
+    sys_updated_on?: string;
   }
 
   interface File {

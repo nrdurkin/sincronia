@@ -17,8 +17,8 @@ export const constructEndpoint = (table: string, params: SysParams): string => {
         map(
           sysparm_query || {},
           (v: any, k) =>
-            `${k}` + (typeof v === "object" ? `${v.op}${v.value}` : `=${v}`),
-        ).join("^"),
+            `${k}` + (typeof v === "object" ? `${v.op}${v.value}` : `=${v}`)
+        ).join("^")
     );
   }
   if (!isEmpty(sysparm_fields)) {
@@ -28,7 +28,6 @@ export const constructEndpoint = (table: string, params: SysParams): string => {
 };
 
 export const ng_getCurrentScope = async (): Promise<SN.ScopeObj> => {
-  console.log("Getting scope via REST request");
   const { SN_USER: username = "" } = process.env;
   const endpoint = constructEndpoint("sys_user_preference", {
     sysparm_query: {

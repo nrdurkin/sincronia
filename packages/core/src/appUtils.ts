@@ -16,8 +16,10 @@ import {
 import { logger } from "./Logger";
 import { aggregateErrorMessages, allSettled } from "./genericUtils";
 import { ng_getManifest, tableData } from "./getManifest";
-import { ng_getCurrentScope } from "./services/serviceNow";
+import { constructEndpoint, ng_getCurrentScope } from "./services/serviceNow";
 import { ng_getMissingFiles } from "./downloadFiles";
+import { connection } from "./services/connection";
+import { forEach, get } from "lodash";
 
 const processFilesInManRec = async (
   recPath: string,
@@ -133,6 +135,26 @@ export const syncManifest = async (
     logger.error("Encountered error while refreshing! ❌");
     logger.error(e.toString());
   }
+};
+
+export const updateRecordTrackedTime = async (
+  table: string,
+  recordId: string,
+  time: string
+) => {
+  const curManifest = await ConfigManager.getManifest();
+  if (!curManifest) throw new Error("No manifest file loaded!");
+
+  const records: SN.TableConfigRecords = get(
+    curManifest,
+    `tables.${table}.records`,
+    {}
+  );
+
+  forEach(records, (metadata, fname) => {
+    if (metadata.sys_id === recordId) metadata.sys_updated_on = time;
+  });
+  fUtils.writeManifestFile(curManifest);
 };
 
 const markFileMissing = (missingObj: SN.MissingFileTableMap) => (
@@ -261,9 +283,6 @@ export const processMissingFiles = async (
     const { tableOptions = {} } = ConfigManager.getConfig();
     const client = defaultClient();
     const filesToProcess = await ng_getMissingFiles(missing);
-    // const filesToProcess = await unwrapSNResponse(
-    //   client.getMissingFiles(missing, tableOptions)
-    // );
     await processTablesInManifest(filesToProcess, false);
   } catch (e) {
     throw e;
@@ -354,7 +373,7 @@ const pushRec = async (
         );
       }
     );
-    return processPushResponse(pushRes, recSummary);
+    return processPushResponse(pushRes, recSummary, table, sysId);
   } catch (e: any) {
     const errMsg = e.message || "Too many retries";
     return { success: false, message: `${recSummary} : ${errMsg}` };
@@ -378,7 +397,25 @@ export const pushFiles = async (
       tick();
       return { success: false, message: `${recSummary} : ${buildRes.message}` };
     }
-    const pushRes = await pushRec(
+    const trackedUpdate = rec.fields[fieldNames[0]].sys_updated_on;
+    const table = rec.table;
+    const endpoint = constructEndpoint(table, {
+      sysparm_query: {
+        sys_id: rec.sysId,
+      },
+      sysparm_fields: ["sys_updated_on", "sys_updated_by"],
+    });
+    const recordData = await connection
+      .get(endpoint)
+      .then((a) => a.data.result[0]);
+    const lastUpdate = recordData.sys_updated_on;
+    const lastUser = recordData.sys_updated_by;
+    if (lastUpdate != trackedUpdate)
+      return {
+        success: false,
+        message: `${recSummary} : Local record version is out of date. \nRecord was last updated on ${lastUpdate} by ${lastUser}`,
+      };
+    const pushRes = pushRec(
       client,
       rec.table,
       rec.sysId,

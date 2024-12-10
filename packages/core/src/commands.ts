@@ -51,11 +51,11 @@ export async function devCommand(args: Sinc.SharedCmdArgs) {
     let refresher = () => {
       refreshCommand(args, false);
     };
-    let interval = ConfigManager.getRefresh();
-    if (interval && interval > 0) {
-      logger.info(`Checking for new manifest files every ${interval} seconds`);
-      setInterval(refresher, interval * 1000);
-    }
+    // let interval = ConfigManager.getRefresh();
+    // if (interval && interval > 0) {
+    //   logger.info(`Checking for new manifest files every ${interval} seconds`);
+    //   // setInterval(refresher, interval * 1000);
+    // }
   });
 }
 
