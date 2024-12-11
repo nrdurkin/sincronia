@@ -1,4 +1,4 @@
-import { get, map, set, compact, forEach, includes } from "lodash";
+import { get, map, set, compact, forEach, filter, flatMap } from "lodash";
 import { baseUrlGQL, connection } from "./services/connection";
 import fs from "fs";
 import {
@@ -9,6 +9,7 @@ import {
   sincConfigDefault,
 } from "./configs/sinc-config.default";
 import { getGqlQuery } from "./utils/graphQL";
+import { defaultClient } from "./snClient";
 
 export const getSincConfig = (): TableData => {
   // console.log(fs.read);
@@ -78,23 +79,31 @@ const getScriptRecords = ({
   differentiatorField,
   files,
   displayField,
+  versionData,
+  table,
 }: {
   tableRecords: RecordItem[];
   differentiatorField: string | string[];
   files: FileItem[];
   displayField: string;
+  versionData: { sys_id: string; name: string }[];
+  table: string;
 }) => {
   const records: Record<
     string,
-    { files: FileItem[]; sys_id: string; name: string; sys_updated_on: string }
+    { files: FileItem[]; sys_id: string; name: string; version: string }
   > = {};
   tableRecords.forEach((record) => {
     const name = generateRecordName(record, differentiatorField, displayField);
+    const versionId = filter(
+      versionData,
+      ({ name }) => name == `${table}_${record.sys_id.value}`
+    );
     records[name] = {
       files: files.map(({ name, type }) => ({ name, type })),
       name: name,
       sys_id: record.sys_id.value,
-      sys_updated_on: record.sys_updated_on.value,
+      version: versionId[0].sys_id,
     };
   });
   return records;
@@ -139,7 +148,6 @@ export const ng_getManifest = async (
         "name",
         "sys_id",
         displayField,
-        "sys_updated_on",
       ]),
     };
   });
@@ -148,6 +156,22 @@ export const ng_getManifest = async (
     getTableDataQuery(tablesData, scope),
     {}
   );
+
+  const versionNames = flatMap(
+    filter(tablesData, ({ name }) => {
+      const tableRecords = get(res, `data.data.query.${name}.list`, []);
+      return tableRecords.length;
+    }),
+    ({ name }) => {
+      const tableRecords = get(res, `data.data.query.${name}.list`, []);
+      return tableRecords.map((rec: any) => `${name}_${rec.sys_id.value}`);
+    }
+  );
+
+  const versionData = await defaultClient()
+    .getVersionData(versionNames)
+    .then((r) => r.data.result);
+
   map(tablesData, ({ name, differentiatorField, files, displayField }) => {
     const tableRecords = get(res, `data.data.query.${name}.list`, []);
     if (tableRecords.length) {
@@ -157,6 +181,8 @@ export const ng_getManifest = async (
           displayField,
           differentiatorField,
           files,
+          versionData,
+          table: name,
         }),
       });
     }

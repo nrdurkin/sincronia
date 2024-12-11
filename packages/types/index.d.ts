@@ -66,7 +66,7 @@ export namespace Sinc {
     sys_id: string;
     scope: string;
     fileContents?: string;
-    sys_updated_on?: string;
+    version?: string;
   }
 
   interface ServerRequestConfig {
@@ -180,7 +180,7 @@ export namespace SN {
     files: File[];
     name: string;
     sys_id: string;
-    sys_updated_on?: string;
+    version?: string;
   }
 
   interface File {

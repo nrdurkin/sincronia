@@ -137,10 +137,10 @@ export const syncManifest = async (
   }
 };
 
-export const updateRecordTrackedTime = async (
+export const updateRecordTrackedVersion = async (
   table: string,
   recordId: string,
-  time: string
+  version: string
 ) => {
   const curManifest = await ConfigManager.getManifest();
   if (!curManifest) throw new Error("No manifest file loaded!");
@@ -152,7 +152,7 @@ export const updateRecordTrackedTime = async (
   );
 
   forEach(records, (metadata, fname) => {
-    if (metadata.sys_id === recordId) metadata.sys_updated_on = time;
+    if (metadata.sys_id === recordId) metadata.version = version;
   });
   fUtils.writeManifestFile(curManifest);
 };
@@ -373,7 +373,7 @@ const pushRec = async (
         );
       }
     );
-    return processPushResponse(pushRes, recSummary, table, sysId);
+    return await processPushResponse(pushRes, recSummary, table, sysId);
   } catch (e: any) {
     const errMsg = e.message || "Too many retries";
     return { success: false, message: `${recSummary} : ${errMsg}` };
@@ -397,24 +397,29 @@ export const pushFiles = async (
       tick();
       return { success: false, message: `${recSummary} : ${buildRes.message}` };
     }
-    const trackedUpdate = rec.fields[fieldNames[0]].sys_updated_on;
-    const table = rec.table;
-    const endpoint = constructEndpoint(table, {
-      sysparm_query: {
-        sys_id: rec.sysId,
-      },
-      sysparm_fields: ["sys_updated_on", "sys_updated_by"],
-    });
-    const recordData = await connection
-      .get(endpoint)
-      .then((a) => a.data.result[0]);
-    const lastUpdate = recordData.sys_updated_on;
-    const lastUser = recordData.sys_updated_by;
-    if (lastUpdate != trackedUpdate)
-      return {
-        success: false,
-        message: `${recSummary} : Local record version is out of date. \nRecord was last updated on ${lastUpdate} by ${lastUser}`,
-      };
+    const trackedVersion = rec.fields[fieldNames[0]].version;
+    if (trackedVersion) {
+      const table = rec.table;
+
+      const endpoint = constructEndpoint("sys_update_version", {
+        sysparm_query: {
+          name: `${table}_${rec.sysId}`,
+          state: "current",
+        },
+        sysparm_fields: ["sys_updated_on", "sys_updated_by", "sys_id"],
+      });
+      const recordData = await connection
+        .get(endpoint)
+        .then((a) => a.data.result[0]);
+      const latestVersion = recordData.sys_id;
+      const lastUpdate = recordData.sys_updated_on;
+      const lastUser = recordData.sys_updated_by;
+      if (latestVersion != trackedVersion)
+        return {
+          success: false,
+          message: `${recSummary} : Local record version is out of date. \nRecord was last updated on ${lastUpdate} by ${lastUser}`,
+        };
+    }
     const pushRes = pushRec(
       client,
       rec.table,

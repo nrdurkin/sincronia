@@ -4,7 +4,9 @@ import rateLimit from "axios-rate-limit";
 import { wait } from "./genericUtils";
 import { logger } from "./Logger";
 import * as ConfigManager from "./config";
-import { updateRecordTrackedTime } from "./appUtils";
+import { updateRecordTrackedVersion } from "./appUtils";
+import { constructEndpoint } from "./services/serviceNow";
+import { connection } from "./services/connection";
 
 export const retryOnErr = async <T>(
   f: () => Promise<T>,
@@ -27,12 +29,12 @@ export const retryOnErr = async <T>(
   }
 };
 
-export const processPushResponse = (
+export const processPushResponse = async (
   response: AxiosResponse,
   recSummary: string,
   table: string,
   recordId: string
-): Sinc.PushResult => {
+): Promise<Sinc.PushResult> => {
   const { status } = response;
   if (status === 404) {
     return {
@@ -46,8 +48,20 @@ export const processPushResponse = (
       message: `Failed to push ${recSummary}. Recieved an unexpected response (${status})`,
     };
   }
-  const updateTime = response.data.result.sys_updated_on;
-  updateRecordTrackedTime(table, recordId, updateTime);
+
+  const endpoint = constructEndpoint("sys_update_version", {
+    sysparm_query: {
+      name: `${table}_${recordId}`,
+      state: "current",
+    },
+    sysparm_fields: ["sys_id"],
+  });
+  const recordData = await connection
+    .get(endpoint)
+    .then((a) => a.data.result[0]);
+  const latestVersion = recordData.sys_id;
+
+  updateRecordTrackedVersion(table, recordId, latestVersion);
 
   return {
     success: true,
@@ -286,7 +300,15 @@ export const snClient = (
     return changes;
   };
 
+  const getVersionData = async (names: string[]): Promise<any> => {
+    const endpoint = `api/now/table/sys_update_version?sysparm_query=state=current^nameIN${names.join(
+      ","
+    )}&sysparm_fields=sys_id,name`;
+    return client.get(endpoint);
+  };
+
   return {
+    getVersionData,
     getAppList,
     updateRecord,
     getScopeId,
