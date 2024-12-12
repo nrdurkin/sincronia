@@ -9,20 +9,20 @@ import path from "path";
 import { snClient, unwrapSNResponse, defaultClient } from "./snClient";
 
 export async function startWizard() {
-  let loginAnswers = await getLoginInfo();
+  const loginAnswers = await getLoginInfo();
   try {
-    let { username, password, instance } = loginAnswers;
+    const { username, password, instance } = loginAnswers;
     const client = snClient(`https://${instance}/`, username, password);
     const apps = await unwrapSNResponse(client.getAppList());
     await setupDotEnv(loginAnswers);
-    let hasConfig = await checkConfig();
+    const hasConfig = await checkConfig();
     if (!hasConfig) {
       logger.info("Generating config...");
       await writeDefaultConfig(hasConfig);
     }
-    let man = ConfigManager.getManifest(true);
+    const man = ConfigManager.getManifest(true);
     if (!man) {
-      let selectedApp = await showAppList(apps);
+      const selectedApp = await showAppList(apps);
       if (!selectedApp) {
         return;
       }
@@ -64,7 +64,7 @@ async function getLoginInfo(): Promise<Sinc.LoginAnswers> {
 
 async function checkConfig(): Promise<boolean> {
   try {
-    let checkConfig = ConfigManager.checkConfigPath();
+    const checkConfig = ConfigManager.checkConfigPath();
     if (!checkConfig) {
       return false;
     }
@@ -76,7 +76,7 @@ async function checkConfig(): Promise<boolean> {
 }
 
 async function setupDotEnv(answers: Sinc.LoginAnswers) {
-  let data = `SN_USER=${answers.username}
+  const data = `SN_USER=${answers.username}
 SN_PASSWORD=${answers.password}
 SN_INSTANCE=${answers.instance}
   `;
@@ -103,8 +103,8 @@ async function writeDefaultConfig(hasConfig: boolean) {
   }
 }
 
-async function showAppList(apps: SN.App[]): Promise<string | undefined> {
-  let appSelection: Sinc.AppSelectionAnswer = await inquirer.prompt([
+async function showAppList(apps: SN.App[]): Promise<string> {
+  const appSelection: Sinc.AppSelectionAnswer = await inquirer.prompt([
     {
       type: "list",
       name: "app",

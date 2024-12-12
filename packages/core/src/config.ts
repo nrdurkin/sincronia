@@ -147,11 +147,11 @@ async function loadConfig(skipConfigPath = false): Promise<Sinc.Config> {
     return DEFAULT_CONFIG;
   }
   try {
-    let configPath = getConfigPath();
+    const configPath = getConfigPath();
     if (configPath) {
-      let projectConfig: Sinc.Config = (await import(configPath)).default;
+      const projectConfig: Sinc.Config = (await import(configPath)).default;
       //merge in includes/excludes
-      let {
+      const {
         includes: pIncludes = {},
         excludes: pExcludes = {},
         tableOptions: pTableOptions = {},
@@ -173,7 +173,7 @@ async function loadConfig(skipConfigPath = false): Promise<Sinc.Config> {
 
 async function loadManifest() {
   try {
-    let manifestString = await fsp.readFile(getManifestPath(), "utf-8");
+    const manifestString = await fsp.readFile(getManifestPath(), "utf-8");
     manifest = JSON.parse(manifestString);
   } catch (e) {
     manifest = undefined;
@@ -189,7 +189,7 @@ async function loadUsConfigPath(pth?: string): Promise<string | false> {
     pth = process.cwd();
   }
   // check to see if us-config is found
-  let files = await fsp.readdir(pth);
+  const files = await fsp.readdir(pth);
   if (files.includes("us-sinc.config.js")) {
     return path.join(pth, "us-sinc.config.js");
   } else {
@@ -205,7 +205,7 @@ async function loadConfigPath(pth?: string): Promise<string | false> {
     pth = process.cwd();
   }
   // check to see if config is found
-  let files = await fsp.readdir(pth);
+  const files = await fsp.readdir(pth);
   if (files.includes("sinc.config.js")) {
     return path.join(pth, "sinc.config.js");
   } else {
@@ -217,40 +217,40 @@ async function loadConfigPath(pth?: string): Promise<string | false> {
 }
 
 async function loadRefresh() {
-  let { refreshInterval = 30 } = getConfig();
+  const { refreshInterval = 30 } = getConfig();
   refresh_interval = refreshInterval;
 }
 
 async function loadSourcePath() {
-  let rootDir = getRootDir();
-  let { sourceDirectory = "src" } = getConfig();
+  const rootDir = getRootDir();
+  const { sourceDirectory = "src" } = getConfig();
   source_path = path.join(rootDir, sourceDirectory);
 }
 
 async function loadBuildPath() {
-  let rootDir = getRootDir();
-  let { buildDirectory = "build" } = getConfig();
+  const rootDir = getRootDir();
+  const { buildDirectory = "build" } = getConfig();
   build_path = path.join(rootDir, buildDirectory);
 }
 
 async function loadEnvPath() {
-  let rootDir = getRootDir();
+  const rootDir = getRootDir();
   env_path = path.join(rootDir, ".env");
 }
 
 async function loadManifestPath() {
-  let rootDir = getRootDir();
+  const rootDir = getRootDir();
   manifest_path = path.join(rootDir, "sinc.manifest.json");
 }
 
 async function loadDiffPath() {
-  let rootDir = getRootDir();
+  const rootDir = getRootDir();
   diff_path = path.join(rootDir, "sinc.diff.manifest.json");
 }
 
 async function loadDiffFile() {
   try {
-    let diffString = await fsp.readFile(getDiffPath(), "utf-8");
+    const diffString = await fsp.readFile(getDiffPath(), "utf-8");
     diff_file = JSON.parse(diffString);
   } catch (e) {
     diff_file = undefined;
@@ -262,7 +262,7 @@ async function loadRootDir(skip?: boolean) {
     root_dir = process.cwd();
     return;
   }
-  let configPath = getConfigPath();
+  const configPath = getConfigPath();
   if (configPath) root_dir = path.dirname(configPath);
   else root_dir = process.cwd();
 }

@@ -20,6 +20,7 @@ import { constructEndpoint, ng_getCurrentScope } from "./services/serviceNow";
 import { ng_getMissingFiles } from "./downloadFiles";
 import { connection } from "./services/connection";
 import { forEach, get } from "lodash";
+import { parseString } from "xml2js";
 
 const processFilesInManRec = async (
   recPath: string,
@@ -406,7 +407,12 @@ export const pushFiles = async (
           name: `${table}_${rec.sysId}`,
           state: "current",
         },
-        sysparm_fields: ["sys_updated_on", "sys_updated_by", "sys_id"],
+        sysparm_fields: [
+          "sys_updated_on",
+          "sys_updated_by",
+          "sys_id",
+          "payload",
+        ],
       });
       const recordData = await connection
         .get(endpoint)
@@ -414,11 +420,31 @@ export const pushFiles = async (
       const latestVersion = recordData.sys_id;
       const lastUpdate = recordData.sys_updated_on;
       const lastUser = recordData.sys_updated_by;
-      if (latestVersion != trackedVersion)
-        return {
-          success: false,
-          message: `${recSummary} : Local record version is out of date. \nRecord was last updated on ${lastUpdate} by ${lastUser}`,
-        };
+      if (latestVersion != trackedVersion) {
+        const payload = recordData.payload;
+
+        const remoteScript: string = await new Promise((resolve, reject) => {
+          parseString(payload, (err, result) => {
+            if (err) {
+              reject(err);
+            }
+            //probably won't work with multiple scripts (client scripts)
+            resolve(result.record_update[table][0].script[0]);
+          });
+        });
+
+        const x = remoteScript.replace(/\r/g, "");
+        const y = buildRes.builtRec.script.replace(/\r/g, "");
+        if (x !== y) {
+          return {
+            success: false,
+            message: `${recSummary} : Local record version is out of date. \nRecord was last updated on ${lastUpdate} by ${lastUser}`,
+          };
+        }
+        console.log(
+          "Versions out of date, but scripts match. Getting latest version"
+        );
+      }
     }
     const pushRes = pushRec(
       client,
