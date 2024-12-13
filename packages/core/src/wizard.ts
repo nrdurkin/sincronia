@@ -4,14 +4,13 @@ import { ConfigManager } from "./config";
 import * as AppUtils from "./appUtils";
 import fs, { promises as fsp } from "fs";
 import { logger } from "./Logger";
-import { snClient, unwrapSNResponse, defaultClient } from "./snClient";
+import { unwrapSNResponse, defaultClient } from "./snClient";
+import { getAppList } from "./services/serviceNow";
 
 export async function startWizard(): Promise<void> {
   const loginAnswers = await getLoginInfo();
   try {
-    const { username, password, instance } = loginAnswers;
-    const client = snClient(`https://${instance}/`, username, password);
-    const apps = await unwrapSNResponse(client.getAppList());
+    const apps = await getAppList(loginAnswers);
     await setupDotEnv(loginAnswers);
     const hasConfig = await checkConfig();
     if (!hasConfig) {
@@ -26,7 +25,7 @@ export async function startWizard(): Promise<void> {
         return;
       }
       logger.info("Downloading app...");
-      await downloadApp(loginAnswers, selectedApp);
+      await downloadApp(selectedApp);
     }
     logger.success(
       "You are all set up 👍 Try running 'npx sinc dev' to begin development mode."
@@ -105,7 +104,7 @@ async function showAppList(apps: SN.App[]): Promise<string> {
   return appSelection.app;
 }
 
-async function downloadApp(answers: Sinc.LoginAnswers, scope: string) {
+async function downloadApp(scope: string) {
   try {
     const client = defaultClient();
     const config = ConfigManager.getConfig();

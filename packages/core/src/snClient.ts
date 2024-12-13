@@ -1,12 +1,12 @@
-import { Sinc, SN, TSFIXME } from "@sincronia/types";
-import axios, { AxiosPromise, AxiosResponse } from "axios";
-import rateLimit from "axios-rate-limit";
+import { Sinc, SN } from "@sincronia/types";
+import { AxiosPromise, AxiosResponse } from "axios";
 import { wait } from "./genericUtils";
 import { logger } from "./Logger";
 import { ConfigManager } from "./config";
 import { updateRecordTrackedVersion } from "./appUtils";
-import { constructEndpoint } from "./services/serviceNow";
-import { connection } from "./services/connection";
+import { getUserSysId, snGetTable } from "./services/serviceNow";
+import { authConnection, connection } from "./services/connection";
+import { Tables } from "./configs/constants";
 
 export const retryOnErr = async <T>(
   f: () => Promise<T>,
@@ -21,9 +21,7 @@ export const retryOnErr = async <T>(
     if (newRetries <= 0) {
       throw e;
     }
-    if (onRetry) {
-      onRetry(newRetries);
-    }
+    if (onRetry) onRetry(newRetries);
     await wait(msBetween);
     return retryOnErr(f, newRetries, msBetween, onRetry);
   }
@@ -49,17 +47,14 @@ export const processPushResponse = async (
     };
   }
 
-  const endpoint = constructEndpoint("sys_update_version", {
+  const data = await snGetTable(Tables.UpdateVersion, {
     sysparm_query: {
       name: `${table}_${recordId}`,
       state: "current",
     },
     sysparm_fields: ["sys_id"],
   });
-  const recordData = await connection
-    .get(endpoint)
-    .then((a) => a.data.result[0]);
-  const latestVersion = recordData.sys_id;
+  const latestVersion = data[0].sys_id;
 
   updateRecordTrackedVersion(table, recordId, latestVersion);
 
@@ -69,37 +64,11 @@ export const processPushResponse = async (
   };
 };
 
-export const snClient = (
-  baseURL: string,
-  username: string,
-  password: string
-) => {
-  const client = rateLimit(
-    axios.create({
-      withCredentials: true,
-      auth: {
-        username,
-        password,
-      },
-      headers: {
-        "Content-Type": "application/json",
-      },
-      baseURL,
-    }),
-    { maxRPS: 20 }
-  );
-
-  const getAppList = () => {
-    const endpoint1 =
-      "/api/now/table/sys_app?sysparm_fields=name,scope,sys_id&sysparm_query=ORDERBYscope";
-    type AppListResponse = Sinc.SNAPIResponse<SN.App[]>;
-    return client.get<AppListResponse>(endpoint1);
-  };
-
+export const snClient = (authParams: Sinc.LoginAnswers) => {
   const updateATFfile = (contents: string, sysId: string) => {
     const endpoint = "api/x_nuvo_sinc/pushATFfile";
     try {
-      return client.post(endpoint, { file: contents, sys_id: sysId });
+      return connection.post(endpoint, { file: contents, sys_id: sysId });
     } catch (e) {
       throw e;
     }
@@ -110,57 +79,32 @@ export const snClient = (
     recordId: string,
     fields: Record<string, string>
   ) => {
-    if (table === "sys_atf_step") {
+    if (table === Tables.AtfStep) {
       updateATFfile(fields["inputs.script"], recordId);
     }
     const endpoint = `api/now/table/${table}/${recordId}`;
-    return client.patch(endpoint, fields);
+    return connection.patch(endpoint, fields);
   };
 
-  const getScopeId = (scopeName: string) => {
-    const endpoint = "api/now/table/sys_scope";
-    type ScopeResponse = Sinc.SNAPIResponse<SN.ScopeRecord[]>;
-    return client.get<ScopeResponse>(endpoint, {
-      params: {
-        sysparm_query: `scope=${scopeName}`,
-        sysparm_fields: "sys_id",
-      },
+  const getCurrentAppUserPrefSysId = async (userSysId: string) => {
+    const data = await snGetTable(Tables.UserPreference, {
+      sysparm_query: { user: userSysId, name: "apps.current_app" },
+      sysparm_fields: ["sys_id"],
     });
-  };
-
-  const getUserSysId = (userName: string = process.env.SN_USER as string) => {
-    const endpoint = "api/now/table/sys_user";
-    type UserResponse = Sinc.SNAPIResponse<SN.UserRecord[]>;
-    return client.get<UserResponse>(endpoint, {
-      params: {
-        sysparm_query: `user_name=${userName}`,
-        sysparm_fields: "sys_id",
-      },
-    });
-  };
-
-  const getCurrentAppUserPrefSysId = (userSysId: string) => {
-    const endpoint = `api/now/table/sys_user_preference`;
-    type UserPrefResponse = Sinc.SNAPIResponse<SN.UserPrefRecord[]>;
-    return client.get<UserPrefResponse>(endpoint, {
-      params: {
-        sysparm_query: `user=${userSysId}^name=apps.current_app`,
-        sysparm_fields: "sys_id",
-      },
-    });
+    return data[0].sys_id;
   };
 
   const updateCurrentAppUserPref = (
     appSysId: string,
     userPrefSysId: string
   ) => {
-    const endpoint = `api/now/table/sys_user_preference/${userPrefSysId}`;
-    return client.put(endpoint, { value: appSysId });
+    const endpoint = `api/now/table/${Tables.UserPreference}/${userPrefSysId}`;
+    return connection.put(endpoint, { value: appSysId });
   };
 
   const createCurrentAppUserPref = (appSysId: string, userSysId: string) => {
-    const endpoint = `api/now/table/sys_user_preference`;
-    return client.post(endpoint, {
+    const endpoint = `api/now/table/${Tables.UserPreference}`;
+    return connection.post(endpoint, {
       value: appSysId,
       name: "apps.current_app",
       type: "string",
@@ -169,48 +113,43 @@ export const snClient = (
   };
 
   const createUpdateSet = (updateSetName: string) => {
-    const endpoint = `api/now/table/sys_update_set`;
+    const endpoint = `api/now/table/${Tables.UpdateSet}`;
     type UpdateSetCreateResponse = Sinc.SNAPIResponse<SN.UpdateSetRecord>;
-    return client.post<UpdateSetCreateResponse>(endpoint, {
+    return connection.post<UpdateSetCreateResponse>(endpoint, {
       name: updateSetName,
     });
   };
 
   const getCurrentUpdateSetId = async (userSysId: string): Promise<string> => {
-    const endpoint = `api/now/table/sys_user_preference`;
-    const res = await client.get(endpoint, {
-      params: {
-        sysparm_query: `user=${userSysId}^name=sys_update_set`,
-        sysparm_fields: "value",
-      },
+    const data = await snGetTable(Tables.UserPreference, {
+      sysparm_query: `user=${userSysId}^name=${Tables.UpdateSet}`,
+      sysparm_fields: ["value"],
     });
-    return res.data?.result[0]?.value || "";
+    return data[0]?.value || "";
   };
 
-  const getCurrentUpdateSetUserPref = (userSysId: string) => {
-    const endpoint = `api/now/table/sys_user_preference`;
-    type CurrentUpdateSetResponse = Sinc.SNAPIResponse<SN.UserPrefRecord[]>;
-    return client.get<CurrentUpdateSetResponse>(endpoint, {
-      params: {
-        sysparm_query: `user=${userSysId}^name=sys_update_set`,
-        sysparm_fields: "sys_id",
-      },
+  const getCurrentUpdateSetUserPref = async (userSysId: string) => {
+    const data = await snGetTable(Tables.UserPreference, {
+      sysparm_query: `user=${userSysId}^name=${Tables.UpdateSet}`,
+      sysparm_fields: ["sys_id"],
     });
+    return data[0].sys_id;
   };
+
   const updateCurrentUpdateSetUserPref = (
     updateSetSysId: string,
     userPrefSysId: string
   ) => {
-    const endpoint = `api/now/table/sys_user_preference/${userPrefSysId}`;
-    return client.put(endpoint, { value: updateSetSysId });
+    const endpoint = `api/now/table/${Tables.UserPreference}/${userPrefSysId}`;
+    return connection.put(endpoint, { value: updateSetSysId });
   };
 
   const createCurrentUpdateSetUserPref = (
     updateSetSysId: string,
     userSysId: string
   ) => {
-    const endpoint = `api/now/table/sys_user_preference`;
-    return client.put(endpoint, {
+    const endpoint = `api/now/table/${Tables.UserPreference}`;
+    return connection.put(endpoint, {
       value: updateSetSysId,
       name: "sys_update_set",
       type: "string",
@@ -233,7 +172,7 @@ export const snClient = (
     const endpoint = `api/x_nuvo_sinc/sinc/getManifest/${scope}`;
     const { includes = {}, excludes = {}, tableOptions = {} } = config;
     type AppResponse = Sinc.SNAPIResponse<SN.AppManifest>;
-    return client.post<AppResponse>(endpoint, {
+    return authConnection(authParams).post<AppResponse>(endpoint, {
       includes,
       excludes,
       tableOptions,
@@ -246,28 +185,23 @@ export const snClient = (
   > => {
     const { updateSetChangeTypes = [] } = await ConfigManager.getUsSincConfig();
 
-    if (!updateSetChangeTypes.length) {
-      return {};
-    }
-    const userData = await getUserSysId();
-    const updateSetId = await getCurrentUpdateSetId(
-      userData.data.result[0].sys_id
-    );
+    if (!updateSetChangeTypes.length) return {};
 
-    const changesTable = "sys_update_xml";
-    const endpoint = `api/now/table/${changesTable}`;
-    const query =
-      `update_set=${updateSetId}^action!=DELETE^typeIN` +
-      updateSetChangeTypes.join(",");
-    const changesData = await client.get(endpoint, {
-      params: {
-        sysparm_query: query,
-        sysparm_fields: "name",
+    const userId = await getUserSysId();
+    const updateSetId = await getCurrentUpdateSetId(userId);
+
+    const changesData = await snGetTable(Tables.UpdateXML, {
+      sysparm_query: {
+        update_set: updateSetId,
+        action: { op: "!=", value: "DELETE" },
+        type: { op: "IN", value: updateSetChangeTypes.join(",") },
       },
+      sysparm_fields: ["name"],
     });
+
     const changes: Record<string, string[]> = {};
-    changesData.data.result.map((change: { name: string }) => {
-      const nameArray = change.name.split("_");
+    changesData.map(({ name }) => {
+      const nameArray = name.split("_");
 
       const table = nameArray.slice(0, -1).join("_");
       const id = nameArray.slice(-1)[0];
@@ -279,19 +213,8 @@ export const snClient = (
     return changes;
   };
 
-  const getVersionData = async (names: string[]): Promise<TSFIXME> => {
-    const endpoint = `api/now/table/sys_update_version?sysparm_query=state=current^nameIN${names.join(
-      ","
-    )}&sysparm_fields=sys_id,name`;
-    return client.get(endpoint);
-  };
-
   return {
-    getVersionData,
-    getAppList,
     updateRecord,
-    getScopeId,
-    getUserSysId,
     getCurrentAppUserPrefSysId,
     updateCurrentAppUserPref,
     createCurrentAppUserPref,
@@ -309,8 +232,12 @@ export const defaultClient = () => {
   if (internalClient) {
     return internalClient;
   }
-  const { SN_USER = "", SN_PASSWORD = "", SN_INSTANCE = "" } = process.env;
-  internalClient = snClient(`https://${SN_INSTANCE}/`, SN_USER, SN_PASSWORD);
+  const {
+    SN_USER: username = "",
+    SN_PASSWORD: password = "",
+    SN_INSTANCE: instance = "",
+  } = process.env;
+  internalClient = snClient({ instance, username, password });
   return internalClient;
 };
 
@@ -328,28 +255,3 @@ export const unwrapSNResponse = async <T>(
     throw e;
   }
 };
-
-export async function unwrapTableAPIFirstItem<T>(
-  clientPromise: AxiosPromise<Sinc.SNAPIResponse<T[]>>
-): Promise<T>;
-export async function unwrapTableAPIFirstItem<T>(
-  clientPromise: AxiosPromise<Sinc.SNAPIResponse<T[]>>,
-  extractField: keyof T
-): Promise<string>;
-export async function unwrapTableAPIFirstItem<T extends Record<string, string>>(
-  clientPromise: AxiosPromise<Sinc.SNAPIResponse<T[]>>,
-  extractField?: keyof T
-): Promise<T | string> {
-  try {
-    const resp = await unwrapSNResponse(clientPromise);
-    if (resp.length === 0) {
-      throw new Error("Response was not a populated array!");
-    }
-    if (!extractField) {
-      return resp[0];
-    }
-    return resp[0][extractField];
-  } catch (e) {
-    throw e;
-  }
-}

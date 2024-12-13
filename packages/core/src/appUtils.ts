@@ -1,10 +1,9 @@
 import { SN, Sinc, TSFIXME } from "@sincronia/types";
 import path from "path";
 import ProgressBar from "progress";
-import * as fWrite from "./utils/writeFiles";
-import * as fUtils from "./FileUtils";
+import * as fUtils from "./utils/FileUtils";
 import { ConfigManager } from "./config";
-import { PUSH_RETRY_LIMIT, PUSH_RETRY_WAIT } from "./constants";
+import { PUSH_RETRY_LIMIT, PUSH_RETRY_WAIT } from "./configs/constants";
 import PluginManager from "./PluginManager";
 import {
   defaultClient,
@@ -12,16 +11,20 @@ import {
   retryOnErr,
   SNClient,
   unwrapSNResponse,
-  unwrapTableAPIFirstItem,
 } from "./snClient";
 import { logger } from "./Logger";
 import { aggregateErrorMessages, allSettled } from "./genericUtils";
 import { ng_getManifest, tableData } from "./getManifest";
-import { constructEndpoint, ng_getCurrentScope } from "./services/serviceNow";
+import {
+  getCurrentScope,
+  getUserSysId,
+  snGetTable,
+} from "./services/serviceNow";
 import { ng_getMissingFiles } from "./downloadFiles";
 import { connection } from "./services/connection";
 import { forEach, get } from "lodash";
 import { parseString } from "xml2js";
+import { Tables } from "./configs/constants";
 
 const processFilesInManRec = async (
   recPath: string,
@@ -154,7 +157,7 @@ export const updateRecordTrackedVersion = async (
   forEach(records, (metadata, _) => {
     if (metadata.sys_id === recordId) metadata.version = version;
   });
-  fWrite.writeManifestFile(curManifest);
+  fUtils.writeManifestFile(curManifest);
 };
 
 const markFileMissing = (missingObj: SN.MissingFileTableMap) => (
@@ -402,27 +405,27 @@ export const pushFiles = async (
     if (trackedVersion) {
       const table = rec.table;
 
-      const endpoint = constructEndpoint("sys_update_version", {
-        sysparm_query: {
-          name: `${table}_${rec.sysId}`,
-          state: "current",
-        },
-        sysparm_fields: [
-          "sys_updated_on",
-          "sys_updated_by",
-          "sys_id",
-          "payload",
-        ],
-      });
-      const recordData = await connection
-        .get(endpoint)
-        .then((a) => a.data.result[0]);
-      const latestVersion = recordData.sys_id;
-      const lastUpdate = recordData.sys_updated_on;
-      const lastUser = recordData.sys_updated_by;
+      const recordData = (
+        await snGetTable(Tables.UpdateVersion, {
+          sysparm_query: {
+            name: `${table}_${rec.sysId}`,
+            state: "current",
+          },
+          sysparm_fields: [
+            "sys_updated_on",
+            "sys_updated_by",
+            "sys_id",
+            "payload",
+          ],
+        })
+      )[0];
+      const {
+        sys_id: latestVersion,
+        sys_updated_on: lastUpdate,
+        sys_updated_by: lastUser,
+        payload,
+      } = recordData;
       if (latestVersion != trackedVersion) {
-        const payload = recordData.payload;
-
         const remoteScript: string = await new Promise((resolve, reject) => {
           parseString(payload, (err, result) => {
             if (err) {
@@ -538,15 +541,11 @@ export const buildFiles = async (
   return Promise.all(buildPromises);
 };
 
-export const swapScope = async (currentScope: string): Promise<SN.ScopeObj> => {
+export const swapScope = async (): Promise<SN.ScopeObj> => {
   try {
-    const client = defaultClient();
-    const scopeId = await unwrapTableAPIFirstItem(
-      client.getScopeId(currentScope),
-      "sys_id"
-    );
+    const scopeId = (await getCurrentScope()).sys_id;
     await swapServerScope(scopeId);
-    const scopeObj = await ng_getCurrentScope();
+    const scopeObj = await getCurrentScope();
     return scopeObj;
   } catch (e) {
     throw e;
@@ -556,15 +555,8 @@ export const swapScope = async (currentScope: string): Promise<SN.ScopeObj> => {
 const swapServerScope = async (scopeId: string): Promise<void> => {
   try {
     const client = defaultClient();
-    const userSysId = await unwrapTableAPIFirstItem(
-      client.getUserSysId(),
-      "sys_id"
-    );
-    const curAppUserPrefId =
-      (await unwrapTableAPIFirstItem(
-        client.getCurrentAppUserPrefSysId(userSysId),
-        "sys_id"
-      )) || "";
+    const userSysId = await getUserSysId();
+    const curAppUserPrefId = await client.getCurrentAppUserPrefSysId(userSysId);
     // If not user pref record exists, create it.
     if (curAppUserPrefId !== "")
       await client.updateCurrentAppUserPref(scopeId, curAppUserPrefId);
@@ -587,13 +579,9 @@ export const createAndAssignUpdateSet = async (
   const { sys_id: updateSetSysId } = await unwrapSNResponse(
     client.createUpdateSet(updateSetName)
   );
-  const userSysId = await unwrapTableAPIFirstItem(
-    client.getUserSysId(),
-    "sys_id"
-  );
-  const curUpdateSetUserPrefId = await unwrapTableAPIFirstItem(
-    client.getCurrentUpdateSetUserPref(userSysId),
-    "sys_id"
+  const userSysId = await getUserSysId();
+  const curUpdateSetUserPrefId = await client.getCurrentUpdateSetUserPref(
+    userSysId
   );
 
   if (curUpdateSetUserPrefId !== "") {
@@ -616,7 +604,7 @@ export const checkScope = async (
   try {
     const man = ConfigManager.getManifest();
     if (man) {
-      const scopeObj = await ng_getCurrentScope();
+      const scopeObj = await getCurrentScope();
       if (scopeObj.scope === man.scope) {
         return {
           match: true,
@@ -624,7 +612,7 @@ export const checkScope = async (
           manifestScope: man.scope,
         };
       } else if (swap) {
-        const swappedScopeObj = await swapScope(man.scope);
+        const swappedScopeObj = await swapScope();
         return {
           match: swappedScopeObj.scope === man.scope,
           sessionScope: swappedScopeObj.scope,

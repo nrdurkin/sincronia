@@ -13,8 +13,8 @@ import {
 import { defaultClient, unwrapSNResponse } from "./snClient";
 import inquirer from "inquirer";
 import { gitDiffToEncodedPaths } from "./gitUtils";
-import { encodedPathsToFilePaths } from "./FileUtils";
-import { ng_getCurrentScope } from "./services/serviceNow";
+import { encodedPathsToFilePaths } from "./utils/FileUtils";
+import { getCurrentScope } from "./services/serviceNow";
 
 async function scopeCheck(successFunc: () => void, swapScopes = false) {
   try {
@@ -232,7 +232,7 @@ export async function deploy(args: Sinc.SharedCmdArgs): Promise<void> {
 
 export async function status() {
   try {
-    const scopeObj = await ng_getCurrentScope();
+    const scopeObj = await getCurrentScope();
     logger.info(`Instance: ${process.env.SN_INSTANCE}`);
     logger.info(`Scope: ${scopeObj.scope}`);
     logger.info(`User: ${process.env.SN_USER}`);

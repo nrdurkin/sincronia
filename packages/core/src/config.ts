@@ -3,7 +3,7 @@ import path from "path";
 import { promises as fsp } from "fs";
 import { logger } from "./Logger";
 import { includes, excludes, tableOptions } from "./configs/defaultOptions";
-import * as fWrite from "./utils/writeFiles";
+import * as fUtils from "./utils/FileUtils";
 
 const DEFAULT_CONFIG: Sinc.Config = {
   sourceDirectory: "src",
@@ -203,7 +203,7 @@ class Manager {
 
   updateManifest(man: SN.AppManifest): void {
     this.manifest = man;
-    fWrite.writeManifestFile(man);
+    fUtils.writeManifestFile(man);
   }
 
   private loadConfigPath = async (pth?: string): Promise<string | false> => {

@@ -1,9 +1,8 @@
 import { SN } from "@sincronia/types";
 import { keys, map, get, forEach, reduce } from "lodash";
 import { tableData } from "./getManifest";
-import { connection } from "./services/connection";
 import { ConfigManager } from "./config";
-import { constructEndpoint } from "./services/serviceNow";
+import { snGetTable } from "./services/serviceNow";
 
 export const ng_getMissingFiles = async (
   missingFiles: SN.MissingFileTableMap
@@ -11,8 +10,11 @@ export const ng_getMissingFiles = async (
   const currentManifest = await ConfigManager.getManifest();
   const result: SN.TableMap = {};
   const filePromises = Object.entries(missingFiles).map(
-    ([table, missingRecord]): Promise<{ list: any; table: string }> => {
-      const endpoint = constructEndpoint(table, {
+    ([table, missingRecord]): Promise<{
+      list: Record<string, string>[];
+      table: string;
+    }> => {
+      return snGetTable(table, {
         sysparm_query: {
           sys_id: { op: "IN", value: keys(missingRecord).join(",") },
         },
@@ -20,9 +22,8 @@ export const ng_getMissingFiles = async (
           ...map(get(tableData, `${table}.files`, []), ({ name }) => name),
           "sys_id",
         ],
-      });
-      return connection.get(endpoint).then((td) => ({
-        list: td.data.result,
+      }).then((list) => ({
+        list,
         table,
       }));
     }

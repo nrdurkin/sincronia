@@ -1,8 +1,9 @@
 import { SN, Sinc } from "@sincronia/types";
-import { PATH_DELIMITER } from "./constants";
+import { PATH_DELIMITER } from "../configs/constants";
 import fs, { promises as fsp } from "fs";
 import path from "path";
-import { ConfigManager } from "./config";
+import { ConfigManager } from "../config";
+import { Tables } from "../configs/constants";
 
 export const SNFileExists = (parentDirPath: string) => async (
   file: SN.File
@@ -99,7 +100,7 @@ const getTargetFieldFromPath = (
   table: string,
   ext: string
 ): string => {
-  return table === "sys_atf_step"
+  return table === Tables.AtfStep
     ? "inputs.script"
     : path.basename(filePath, ext);
 };
@@ -210,6 +211,13 @@ export const writeBuildFile = async (
   } catch (e) {
     throw e;
   }
+};
+
+export const writeManifestFile = async (man: SN.AppManifest): Promise<void> => {
+  return fsp.writeFile(
+    ConfigManager.getManifestPath(),
+    JSON.stringify(man, null, 2)
+  );
 };
 
 export const writeSNFileIfNotExists = writeSNFileCurry(true);

@@ -9,7 +9,7 @@ import {
   sincConfigDefault,
 } from "./configs/sinc-config.default";
 import { getGqlQuery } from "./utils/graphQL";
-import { defaultClient } from "./snClient";
+import { getVersionData } from "./services/serviceNow";
 
 export const getSincConfig = (): TableData => {
   // console.log(fs.read);
@@ -168,9 +168,7 @@ export const ng_getManifest = async (
     }
   );
 
-  const versionData = await defaultClient()
-    .getVersionData(versionNames)
-    .then((r) => r.data.result);
+  const versionData = await getVersionData(versionNames);
 
   map(tablesData, ({ name, differentiatorField, files, displayField }) => {
     const tableRecords = get(res, `data.data.query.${name}.list`, []);
