@@ -18,41 +18,41 @@ const DEFAULT_CONFIG: Sinc.Config = {
 const isRoot = (pth: string): boolean => path.parse(pth).root === pth;
 
 class Manager {
-  #root_dir: string | undefined;
-  #config: Sinc.Config | undefined;
-  #manifest: SN.AppManifest | undefined;
-  #config_path: string | undefined;
-  #source_path: string | undefined;
-  #build_path: string | undefined;
-  #env_path: string | undefined;
-  #manifest_path: string | undefined;
-  #diff_path: string | undefined;
-  #diff_file: Sinc.DiffFile | undefined;
-  #refresh_interval: number | undefined;
-  #update_set_path: string | undefined;
-  #update_set_file: TSFIXME;
+  private root_dir: string | undefined;
+  private config: Sinc.Config | undefined;
+  private manifest: SN.AppManifest | undefined;
+  private config_path: string | undefined;
+  private source_path: string | undefined;
+  private build_path: string | undefined;
+  private env_path: string | undefined;
+  private manifest_path: string | undefined;
+  private diff_path: string | undefined;
+  private diff_file: Sinc.DiffFile | undefined;
+  private refresh_interval: number | undefined;
+  private update_set_path: string | undefined;
+  private update_set_file: TSFIXME;
 
   loadConfigs = async (): Promise<void> => {
     try {
       let noConfigPath = false; //Prevents logging error messages during init
-      const cfg_path = await this.#loadConfigPath();
-      if (cfg_path) this.#config_path = cfg_path;
+      const cfg_path = await this.loadConfigPath();
+      if (cfg_path) this.config_path = cfg_path;
       else noConfigPath = true;
 
       if (noConfigPath) {
-        this.#root_dir = process.cwd();
-        this.#env_path = path.join(this.#root_dir, ".env");
+        this.root_dir = process.cwd();
+        this.env_path = path.join(this.root_dir, ".env");
         return;
       }
 
       const configPath = this.getConfigPath();
-      if (configPath) this.#root_dir = path.dirname(configPath);
+      if (configPath) this.root_dir = path.dirname(configPath);
       const rootDir = process.cwd();
-      this.#root_dir = rootDir;
-      this.#env_path = path.join(rootDir, ".env");
+      this.root_dir = rootDir;
+      this.env_path = path.join(rootDir, ".env");
 
-      const cfg = await this.#loadConfig(noConfigPath);
-      if (cfg) this.#config = cfg;
+      const cfg = await this.loadConfig(noConfigPath);
+      if (cfg) this.config = cfg;
 
       const {
         sourceDirectory = "src",
@@ -60,17 +60,17 @@ class Manager {
         refreshInterval = 30,
       } = cfg;
 
-      this.#source_path = path.join(rootDir, sourceDirectory);
-      this.#build_path = path.join(rootDir, buildDirectory);
-      this.#refresh_interval = refreshInterval;
-      this.#manifest_path = path.join(rootDir, "sinc.manifest.json");
-      this.#diff_path = path.join(rootDir, "sinc.diff.manifest.json");
-      this.#update_set_path = await this.#loadUsConfigPath();
-      this.#update_set_file = await this.#loadUSFile();
+      this.source_path = path.join(rootDir, sourceDirectory);
+      this.build_path = path.join(rootDir, buildDirectory);
+      this.refresh_interval = refreshInterval;
+      this.manifest_path = path.join(rootDir, "sinc.manifest.json");
+      this.diff_path = path.join(rootDir, "sinc.diff.manifest.json");
+      this.update_set_path = await this.loadUsConfigPath();
+      this.update_set_file = await this.loadUSFile();
 
       try {
         const diffString = await fsp.readFile(this.getDiffPath(), "utf-8");
-        this.#diff_file = JSON.parse(diffString);
+        this.diff_file = JSON.parse(diffString);
       } catch (e) {}
 
       try {
@@ -78,7 +78,7 @@ class Manager {
           this.getManifestPath(),
           "utf-8"
         );
-        this.#manifest = JSON.parse(manifestString);
+        this.manifest = JSON.parse(manifestString);
       } catch (e) {}
     } catch (e) {
       throw e;
@@ -86,62 +86,62 @@ class Manager {
   };
 
   getConfig(): Sinc.Config {
-    if (this.#config) return this.#config;
+    if (this.config) return this.config;
     throw new Error("Error getting config");
   }
 
   getConfigPath(): string {
-    if (this.#config_path) return this.#config_path;
+    if (this.config_path) return this.config_path;
     throw new Error("Error getting config path");
   }
 
   checkConfigPath(): string | false {
-    if (this.#config_path) return this.#config_path;
+    if (this.config_path) return this.config_path;
     return false;
   }
 
   getRootDir(): string {
-    if (this.#root_dir) return this.#root_dir;
+    if (this.root_dir) return this.root_dir;
     throw new Error("Error getting root directory");
   }
 
   getManifest(): SN.AppManifest {
-    if (this.#manifest) return this.#manifest;
+    if (this.manifest) return this.manifest;
     throw new Error("Error getting manifest");
   }
 
   getManifestPath(): string {
-    if (this.#manifest_path) return this.#manifest_path;
+    if (this.manifest_path) return this.manifest_path;
     throw new Error("Error getting manifest path");
   }
 
   getSourcePath(): string {
-    if (this.#source_path) return this.#source_path;
+    if (this.source_path) return this.source_path;
     throw new Error("Error getting source path");
   }
 
   getBuildPath(): string {
-    if (this.#build_path) return this.#build_path;
+    if (this.build_path) return this.build_path;
     throw new Error("Error getting build path");
   }
 
   getEnvPath(): string {
-    if (this.#env_path) return this.#env_path;
+    if (this.env_path) return this.env_path;
     throw new Error("Error getting env path");
   }
 
   getDiffPath(): string {
-    if (this.#diff_path) return this.#diff_path;
+    if (this.diff_path) return this.diff_path;
     throw new Error("Error getting diff path");
   }
 
   getDiffFile(): Sinc.DiffFile {
-    if (this.#diff_file) return this.#diff_file;
+    if (this.diff_file) return this.diff_file;
     throw new Error("Error getting diff file");
   }
 
   getRefresh(): number {
-    if (this.#refresh_interval) return this.#refresh_interval;
+    if (this.refresh_interval) return this.refresh_interval;
     throw new Error("Error getting refresh interval");
   }
 
@@ -161,7 +161,7 @@ class Manager {
     }
   };
 
-  #loadConfig = async (skipConfigPath = false): Promise<Sinc.Config> => {
+  private loadConfig = async (skipConfigPath = false): Promise<Sinc.Config> => {
     if (skipConfigPath) {
       logger.warn("Couldn't find config file. Loading default...");
       return DEFAULT_CONFIG;
@@ -191,9 +191,9 @@ class Manager {
     }
   };
 
-  #loadUSFile = async () => {
+  private loadUSFile = async () => {
     try {
-      const usSincConfigPath = this.#update_set_path;
+      const usSincConfigPath = this.update_set_path;
       if (usSincConfigPath) return (await import(usSincConfigPath)).default;
       return {};
     } catch (e: unknown) {
@@ -202,30 +202,32 @@ class Manager {
   };
 
   updateManifest(man: SN.AppManifest): void {
-    this.#manifest = man;
+    this.manifest = man;
     fWrite.writeManifestFile(man);
   }
 
-  #loadConfigPath = async (pth?: string): Promise<string | false> => {
+  private loadConfigPath = async (pth?: string): Promise<string | false> => {
     if (!pth) pth = process.cwd();
     const files = await fsp.readdir(pth);
     if (files.includes("sinc.config.js"))
       return path.join(pth, "sinc.config.js");
     if (isRoot(pth)) return false;
-    return this.#loadConfigPath(path.dirname(pth));
+    return this.loadConfigPath(path.dirname(pth));
   };
 
-  #loadUsConfigPath = async (pth?: string): Promise<string | undefined> => {
+  private loadUsConfigPath = async (
+    pth?: string
+  ): Promise<string | undefined> => {
     if (!pth) pth = process.cwd();
     const files = await fsp.readdir(pth);
     if (files.includes("us-sinc.config.js"))
       return path.join(pth, "us-sinc.config.js");
     if (isRoot(pth)) return undefined;
-    return this.#loadUsConfigPath(path.dirname(pth));
+    return this.loadUsConfigPath(path.dirname(pth));
   };
 
   getUsSincConfig = async (): Promise<TSFIXME> => {
-    if (this.#update_set_file) return this.#update_set_file;
+    if (this.update_set_file) return this.update_set_file;
     throw new Error("Error getting config");
   };
 }
