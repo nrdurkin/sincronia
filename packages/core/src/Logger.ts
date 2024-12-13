@@ -14,13 +14,13 @@ class SincLogger {
     return this.logger.level;
   }
 
-  private genLoggerOpts(level: string = "info"): winston.LoggerOptions {
+  private genLoggerOpts(level = "info"): winston.LoggerOptions {
     return {
-      format: format.printf(info => {
+      format: format.printf((info) => {
         return `${info.message}`;
       }),
       level,
-      transports: [new transports.Console()]
+      transports: [new transports.Console()],
     };
   }
 

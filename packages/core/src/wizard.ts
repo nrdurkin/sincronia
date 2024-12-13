@@ -1,14 +1,12 @@
 import { SN, Sinc } from "@sincronia/types";
 import inquirer from "inquirer";
-import * as ConfigManager from "./config";
+import { ConfigManager } from "./config";
 import * as AppUtils from "./appUtils";
-import fs from "fs";
-const fsp = fs.promises;
+import fs, { promises as fsp } from "fs";
 import { logger } from "./Logger";
-import path from "path";
 import { snClient, unwrapSNResponse, defaultClient } from "./snClient";
 
-export async function startWizard() {
+export async function startWizard(): Promise<void> {
   const loginAnswers = await getLoginInfo();
   try {
     const { username, password, instance } = loginAnswers;
@@ -18,10 +16,11 @@ export async function startWizard() {
     const hasConfig = await checkConfig();
     if (!hasConfig) {
       logger.info("Generating config...");
-      await writeDefaultConfig(hasConfig);
+      await ConfigManager.writeDefaultConfig();
     }
-    const man = ConfigManager.getManifest(true);
-    if (!man) {
+    try {
+      ConfigManager.getManifest();
+    } catch (e) {
       const selectedApp = await showAppList(apps);
       if (!selectedApp) {
         return;
@@ -65,9 +64,7 @@ async function getLoginInfo(): Promise<Sinc.LoginAnswers> {
 async function checkConfig(): Promise<boolean> {
   try {
     const checkConfig = ConfigManager.checkConfigPath();
-    if (!checkConfig) {
-      return false;
-    }
+    if (!checkConfig) return false;
     await fsp.access(checkConfig, fs.constants.F_OK);
     return true;
   } catch (e) {
@@ -90,19 +87,6 @@ SN_INSTANCE=${answers.instance}
   }
 }
 
-async function writeDefaultConfig(hasConfig: boolean) {
-  try {
-    let pth;
-    if (hasConfig) pth = ConfigManager.getConfigPath();
-    else pth = path.join(process.cwd(), "sinc.config.js");
-    if (pth) {
-      await fsp.writeFile(pth, ConfigManager.getDefaultConfigFile());
-    }
-  } catch (e) {
-    throw e;
-  }
-}
-
 async function showAppList(apps: SN.App[]): Promise<string> {
   const appSelection: Sinc.AppSelectionAnswer = await inquirer.prompt([
     {
@@ -111,9 +95,9 @@ async function showAppList(apps: SN.App[]): Promise<string> {
       message: "Which app would you like to work with?",
       choices: apps.map((app) => {
         return {
-          name: `${app.displayName}(${app.scope})`,
+          name: `${app.name}(${app.scope})`,
           value: app.scope,
-          short: app.displayName,
+          short: app.name,
         };
       }),
     },
@@ -127,8 +111,8 @@ async function downloadApp(answers: Sinc.LoginAnswers, scope: string) {
     const config = ConfigManager.getConfig();
     const man = await unwrapSNResponse(client.getManifest(scope, config, true));
     await AppUtils.processManifest(man);
-  } catch (e: any) {
-    logger.error(e.toString());
+  } catch (e: unknown) {
+    if (e instanceof Error) logger.error(e.toString());
     throw new Error("Failed to download files!");
   }
 }

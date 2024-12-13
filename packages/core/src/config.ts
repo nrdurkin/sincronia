@@ -1,9 +1,9 @@
-import { SN, Sinc } from "@sincronia/types";
+import { SN, Sinc, TSFIXME } from "@sincronia/types";
 import path from "path";
 import { promises as fsp } from "fs";
 import { logger } from "./Logger";
-import { includes, excludes, tableOptions } from "./defaultOptions";
-import { isRoot } from "./FileUtils";
+import { includes, excludes, tableOptions } from "./configs/defaultOptions";
+import * as fWrite from "./utils/writeFiles";
 
 const DEFAULT_CONFIG: Sinc.Config = {
   sourceDirectory: "src",
@@ -15,254 +15,220 @@ const DEFAULT_CONFIG: Sinc.Config = {
   refreshInterval: 30,
 };
 
-let root_dir: string | undefined;
-let config: Sinc.Config | undefined;
-let manifest: SN.AppManifest | undefined;
-let config_path: string | undefined;
-let source_path: string | undefined;
-let build_path: string | undefined;
-let env_path: string | undefined;
-let manifest_path: string | undefined;
-let diff_path: string | undefined;
-let diff_file: Sinc.DiffFile | undefined;
-let refresh_interval: number | undefined;
+const isRoot = (pth: string): boolean => path.parse(pth).root === pth;
 
-export const loadConfigs = async () => {
-  try {
-    let noConfigPath = false; //Prevents logging error messages during init
-    const path = await loadConfigPath();
-    if (path) config_path = path;
-    else noConfigPath = true;
+class Manager {
+  #root_dir: string | undefined;
+  #config: Sinc.Config | undefined;
+  #manifest: SN.AppManifest | undefined;
+  #config_path: string | undefined;
+  #source_path: string | undefined;
+  #build_path: string | undefined;
+  #env_path: string | undefined;
+  #manifest_path: string | undefined;
+  #diff_path: string | undefined;
+  #diff_file: Sinc.DiffFile | undefined;
+  #refresh_interval: number | undefined;
+  #update_set_path: string | undefined;
+  #update_set_file: TSFIXME;
 
-    await loadRootDir(noConfigPath);
+  loadConfigs = async (): Promise<void> => {
+    try {
+      let noConfigPath = false; //Prevents logging error messages during init
+      const cfg_path = await this.#loadConfigPath();
+      if (cfg_path) this.#config_path = cfg_path;
+      else noConfigPath = true;
 
-    const cfg = await loadConfig(noConfigPath);
-    if (cfg) config = cfg;
+      if (noConfigPath) {
+        this.#root_dir = process.cwd();
+        this.#env_path = path.join(this.#root_dir, ".env");
+        return;
+      }
 
-    await loadEnvPath();
-    await loadSourcePath();
-    await loadBuildPath();
-    await loadManifestPath();
-    await loadManifest();
-    await loadDiffPath();
-    await loadDiffFile();
-    await loadRefresh();
-  } catch (e) {
-    throw e;
-  }
-};
+      const configPath = this.getConfigPath();
+      if (configPath) this.#root_dir = path.dirname(configPath);
+      const rootDir = process.cwd();
+      this.#root_dir = rootDir;
+      this.#env_path = path.join(rootDir, ".env");
 
-export function getConfig() {
-  if (config) return config;
-  throw new Error("Error getting config");
-}
+      const cfg = await this.#loadConfig(noConfigPath);
+      if (cfg) this.#config = cfg;
 
-export function getConfigPath() {
-  if (config_path) return config_path;
-  throw new Error("Error getting config path");
-}
-
-export function checkConfigPath() {
-  if (config_path) return config_path;
-  return false;
-}
-
-export function getRootDir() {
-  if (root_dir) return root_dir;
-  throw new Error("Error getting root directory");
-}
-
-export function getManifest(setup = false) {
-  if (manifest) return manifest;
-  if (!setup) throw new Error("Error getting manifest");
-}
-
-export function getManifestPath() {
-  if (manifest_path) return manifest_path;
-  throw new Error("Error getting manifest path");
-}
-
-export function getSourcePath() {
-  if (source_path) return source_path;
-  throw new Error("Error getting source path");
-}
-
-export function getBuildPath() {
-  if (build_path) return build_path;
-  throw new Error("Error getting build path");
-}
-
-export function getEnvPath() {
-  if (env_path) return env_path;
-  throw new Error("Error getting env path");
-}
-
-export function getDiffPath() {
-  if (diff_path) return diff_path;
-  throw new Error("Error getting diff path");
-}
-
-export function getDiffFile() {
-  if (diff_file) return diff_file;
-  throw new Error("Error getting diff file");
-}
-
-export function getRefresh() {
-  if (refresh_interval) return refresh_interval;
-  throw new Error("Error getting refresh interval");
-}
-
-export function getDefaultConfigFile(): string {
-  return `
-    module.exports = {
-      sourceDirectory: "src",
-      buildDirectory: "build",
-      rules: [],
-      excludes:{},
-      includes:{},
-      tableOptions:{},
-      refreshInterval:30
-    };
-    `.trim();
-}
-
-export async function getUsSincConfig(): Promise<any> {
-  try {
-    const usSincConfigPath = await loadUsConfigPath();
-    if (usSincConfigPath) {
-      const projectConfig: any = (await import(usSincConfigPath)).default;
-      return projectConfig;
-    }
-  } catch (e: any) {
-    logger.warn(e);
-    logger.warn("Couldn't find config file. Loading default...");
-    throw e;
-  }
-  return {};
-}
-
-async function loadConfig(skipConfigPath = false): Promise<Sinc.Config> {
-  if (skipConfigPath) {
-    logger.warn("Couldn't find config file. Loading default...");
-    return DEFAULT_CONFIG;
-  }
-  try {
-    const configPath = getConfigPath();
-    if (configPath) {
-      const projectConfig: Sinc.Config = (await import(configPath)).default;
-      //merge in includes/excludes
       const {
-        includes: pIncludes = {},
-        excludes: pExcludes = {},
-        tableOptions: pTableOptions = {},
-      } = projectConfig;
-      projectConfig.includes = Object.assign(includes, pIncludes);
-      projectConfig.excludes = Object.assign(excludes, pExcludes);
-      projectConfig.tableOptions = Object.assign(tableOptions, pTableOptions);
-      return projectConfig;
-    } else {
+        sourceDirectory = "src",
+        buildDirectory = "build",
+        refreshInterval = 30,
+      } = cfg;
+
+      this.#source_path = path.join(rootDir, sourceDirectory);
+      this.#build_path = path.join(rootDir, buildDirectory);
+      this.#refresh_interval = refreshInterval;
+      this.#manifest_path = path.join(rootDir, "sinc.manifest.json");
+      this.#diff_path = path.join(rootDir, "sinc.diff.manifest.json");
+      this.#update_set_path = await this.#loadUsConfigPath();
+      this.#update_set_file = await this.#loadUSFile();
+
+      try {
+        const diffString = await fsp.readFile(this.getDiffPath(), "utf-8");
+        this.#diff_file = JSON.parse(diffString);
+      } catch (e) {}
+
+      try {
+        const manifestString = await fsp.readFile(
+          this.getManifestPath(),
+          "utf-8"
+        );
+        this.#manifest = JSON.parse(manifestString);
+      } catch (e) {}
+    } catch (e) {
+      throw e;
+    }
+  };
+
+  getConfig(): Sinc.Config {
+    if (this.#config) return this.#config;
+    throw new Error("Error getting config");
+  }
+
+  getConfigPath(): string {
+    if (this.#config_path) return this.#config_path;
+    throw new Error("Error getting config path");
+  }
+
+  checkConfigPath(): string | false {
+    if (this.#config_path) return this.#config_path;
+    return false;
+  }
+
+  getRootDir(): string {
+    if (this.#root_dir) return this.#root_dir;
+    throw new Error("Error getting root directory");
+  }
+
+  getManifest(): SN.AppManifest {
+    if (this.#manifest) return this.#manifest;
+    throw new Error("Error getting manifest");
+  }
+
+  getManifestPath(): string {
+    if (this.#manifest_path) return this.#manifest_path;
+    throw new Error("Error getting manifest path");
+  }
+
+  getSourcePath(): string {
+    if (this.#source_path) return this.#source_path;
+    throw new Error("Error getting source path");
+  }
+
+  getBuildPath(): string {
+    if (this.#build_path) return this.#build_path;
+    throw new Error("Error getting build path");
+  }
+
+  getEnvPath(): string {
+    if (this.#env_path) return this.#env_path;
+    throw new Error("Error getting env path");
+  }
+
+  getDiffPath(): string {
+    if (this.#diff_path) return this.#diff_path;
+    throw new Error("Error getting diff path");
+  }
+
+  getDiffFile(): Sinc.DiffFile {
+    if (this.#diff_file) return this.#diff_file;
+    throw new Error("Error getting diff file");
+  }
+
+  getRefresh(): number {
+    if (this.#refresh_interval) return this.#refresh_interval;
+    throw new Error("Error getting refresh interval");
+  }
+
+  writeDefaultConfig = async () => {
+    try {
+      const pth = path.join(process.cwd(), "sinc.config.js");
+      const defaultFile = `module.exports = ${JSON.stringify(
+        DEFAULT_CONFIG,
+        null,
+        4
+      )};
+      `.trim();
+      await fsp.writeFile(pth, defaultFile);
+      this.loadConfigs();
+    } catch (e) {
+      throw e;
+    }
+  };
+
+  #loadConfig = async (skipConfigPath = false): Promise<Sinc.Config> => {
+    if (skipConfigPath) {
       logger.warn("Couldn't find config file. Loading default...");
       return DEFAULT_CONFIG;
     }
-  } catch (e: any) {
-    logger.warn(e);
-    logger.warn("Couldn't find config file. Loading default...");
-    return DEFAULT_CONFIG;
-  }
-}
-
-async function loadManifest() {
-  try {
-    const manifestString = await fsp.readFile(getManifestPath(), "utf-8");
-    manifest = JSON.parse(manifestString);
-  } catch (e) {
-    manifest = undefined;
-  }
-}
-
-export function updateManifest(man: SN.AppManifest) {
-  manifest = man;
-}
-
-async function loadUsConfigPath(pth?: string): Promise<string | false> {
-  if (!pth) {
-    pth = process.cwd();
-  }
-  // check to see if us-config is found
-  const files = await fsp.readdir(pth);
-  if (files.includes("us-sinc.config.js")) {
-    return path.join(pth, "us-sinc.config.js");
-  } else {
-    if (isRoot(pth)) {
-      return false;
+    try {
+      const configPath = this.getConfigPath();
+      if (configPath) {
+        const projectConfig: Sinc.Config = (await import(configPath)).default;
+        //merge in includes/excludes
+        const {
+          includes: pIncludes = {},
+          excludes: pExcludes = {},
+          tableOptions: pTableOptions = {},
+        } = projectConfig;
+        projectConfig.includes = Object.assign(includes, pIncludes);
+        projectConfig.excludes = Object.assign(excludes, pExcludes);
+        projectConfig.tableOptions = Object.assign(tableOptions, pTableOptions);
+        return projectConfig;
+      } else {
+        logger.warn("Couldn't find config file. Loading default...");
+        return DEFAULT_CONFIG;
+      }
+    } catch (e: unknown) {
+      if (e instanceof Error) logger.warn(e.message);
+      logger.warn("Couldn't find config file. Loading default...");
+      return DEFAULT_CONFIG;
     }
-    return loadUsConfigPath(path.dirname(pth));
-  }
-}
+  };
 
-async function loadConfigPath(pth?: string): Promise<string | false> {
-  if (!pth) {
-    pth = process.cwd();
-  }
-  // check to see if config is found
-  const files = await fsp.readdir(pth);
-  if (files.includes("sinc.config.js")) {
-    return path.join(pth, "sinc.config.js");
-  } else {
-    if (isRoot(pth)) {
-      return false;
+  #loadUSFile = async () => {
+    try {
+      const usSincConfigPath = this.#update_set_path;
+      if (usSincConfigPath) return (await import(usSincConfigPath)).default;
+      return {};
+    } catch (e: unknown) {
+      throw new Error("Error getting diff file");
     }
-    return loadConfigPath(path.dirname(pth));
+  };
+
+  updateManifest(man: SN.AppManifest): void {
+    this.#manifest = man;
+    fWrite.writeManifestFile(man);
   }
+
+  #loadConfigPath = async (pth?: string): Promise<string | false> => {
+    if (!pth) pth = process.cwd();
+    const files = await fsp.readdir(pth);
+    if (files.includes("sinc.config.js"))
+      return path.join(pth, "sinc.config.js");
+    if (isRoot(pth)) return false;
+    return this.#loadConfigPath(path.dirname(pth));
+  };
+
+  #loadUsConfigPath = async (pth?: string): Promise<string | undefined> => {
+    if (!pth) pth = process.cwd();
+    const files = await fsp.readdir(pth);
+    if (files.includes("us-sinc.config.js"))
+      return path.join(pth, "us-sinc.config.js");
+    if (isRoot(pth)) return undefined;
+    return this.#loadUsConfigPath(path.dirname(pth));
+  };
+
+  getUsSincConfig = async (): Promise<TSFIXME> => {
+    if (this.#update_set_file) return this.#update_set_file;
+    throw new Error("Error getting config");
+  };
 }
 
-async function loadRefresh() {
-  const { refreshInterval = 30 } = getConfig();
-  refresh_interval = refreshInterval;
-}
-
-async function loadSourcePath() {
-  const rootDir = getRootDir();
-  const { sourceDirectory = "src" } = getConfig();
-  source_path = path.join(rootDir, sourceDirectory);
-}
-
-async function loadBuildPath() {
-  const rootDir = getRootDir();
-  const { buildDirectory = "build" } = getConfig();
-  build_path = path.join(rootDir, buildDirectory);
-}
-
-async function loadEnvPath() {
-  const rootDir = getRootDir();
-  env_path = path.join(rootDir, ".env");
-}
-
-async function loadManifestPath() {
-  const rootDir = getRootDir();
-  manifest_path = path.join(rootDir, "sinc.manifest.json");
-}
-
-async function loadDiffPath() {
-  const rootDir = getRootDir();
-  diff_path = path.join(rootDir, "sinc.diff.manifest.json");
-}
-
-async function loadDiffFile() {
-  try {
-    const diffString = await fsp.readFile(getDiffPath(), "utf-8");
-    diff_file = JSON.parse(diffString);
-  } catch (e) {
-    diff_file = undefined;
-  }
-}
-
-async function loadRootDir(skip?: boolean) {
-  if (skip) {
-    root_dir = process.cwd();
-    return;
-  }
-  const configPath = getConfigPath();
-  if (configPath) root_dir = path.dirname(configPath);
-  else root_dir = process.cwd();
-}
+const managerInst = new Manager();
+export { managerInst as ConfigManager };

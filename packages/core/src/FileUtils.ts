@@ -2,7 +2,7 @@ import { SN, Sinc } from "@sincronia/types";
 import { PATH_DELIMITER } from "./constants";
 import fs, { promises as fsp } from "fs";
 import path from "path";
-import * as ConfigManager from "./config";
+import { ConfigManager } from "./config";
 
 export const SNFileExists = (parentDirPath: string) => async (
   file: SN.File
@@ -15,15 +15,6 @@ export const SNFileExists = (parentDirPath: string) => async (
     return false;
   }
 };
-
-export const writeManifestFile = async (man: SN.AppManifest) => {
-  return fsp.writeFile(
-    ConfigManager.getManifestPath(),
-    JSON.stringify(man, null, 2)
-  );
-};
-
-export const isRoot = (pth: string): boolean => path.parse(pth).root === pth;
 
 export const writeSNFileCurry = (checkExists: boolean) => async (
   file: SN.File,
@@ -208,7 +199,7 @@ export const writeBuildFile = async (
   folderPath: string,
   newPath: string,
   fileContents: string
-) => {
+): Promise<void> => {
   try {
     await fsp.access(folderPath, fs.constants.F_OK);
   } catch (e) {

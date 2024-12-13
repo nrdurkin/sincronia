@@ -1,5 +1,5 @@
 import { Sinc } from "@sincronia/types";
-let excludes: Sinc.TablePropMap = {
+const excludes: Sinc.TablePropMap = {
   sys_scope_privilege: true,
   sys_dictionary: true,
   sys_impex_entry: true,
@@ -25,17 +25,17 @@ let excludes: Sinc.TablePropMap = {
   content_block_detail: true,
   sp_portal: true,
   sc_cat_item_producer: true,
-  sys_impex_map: true
+  sys_impex_map: true,
 };
 
-let includes: Sinc.TablePropMap = {
+const includes: Sinc.TablePropMap = {
   content_css: {
     style: {
-      type: "css"
-    }
-  }
+      type: "css",
+    },
+  },
 };
 
-let tableOptions: Sinc.ITableOptionsMap = {};
+const tableOptions: Sinc.ITableOptionsMap = {};
 
 export { includes, excludes, tableOptions };

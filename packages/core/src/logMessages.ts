@@ -4,16 +4,16 @@ import chalk from "chalk";
 
 export const log = console.log;
 
-export function scopeCheckMessage(scopeCheck: Sinc.ScopeCheckResult) {
-  let sScope = chalk.blue(scopeCheck.sessionScope);
-  let mScope = chalk.blue(scopeCheck.manifestScope);
+export function scopeCheckMessage(scopeCheck: Sinc.ScopeCheckResult): void {
+  const sScope = chalk.blue(scopeCheck.sessionScope);
+  const mScope = chalk.blue(scopeCheck.manifestScope);
 
   logger.error(
     `Your user's scope is set to ${sScope} but this project is configured for the ${mScope} scope. Please switch scopes in ServiceNow to continue.`
   );
 }
 
-export function devModeLog() {
+export function devModeLog(): void {
   logger.info(
     `Dev mode started! Watching for changes...[${chalk.red(
       "Press CTRL-C to Stop"
@@ -59,10 +59,10 @@ function multiLog(
   err?: Error
 ) {
   if (success) {
-    let fileNum = chalk.bold.blue(
-      resultSet.filter(result => result).length + ""
+    const fileNum = chalk.bold.blue(
+      resultSet.filter((result) => result).length + ""
     );
-    let message = chalk.green(`${fileNum} files ${successMessage}`);
+    const message = chalk.green(`${fileNum} files ${successMessage}`);
     logger.info(message);
   } else {
     logger.error(errorMessage);
@@ -78,7 +78,7 @@ export function logDeploy(
   success: boolean,
   resultSet: boolean[],
   err?: Error
-) {
+): void {
   multiLog(
     files,
     success,
@@ -97,7 +97,7 @@ const logOperationResults = (
   results: Sinc.PushResult[] | Sinc.BuildResult[],
   operation: string
 ): void => {
-  const unsuccessful = results.filter(r => !r.success);
+  const unsuccessful = results.filter((r) => !r.success);
   const logr = logger.getInternalLogger();
   const label = (content: string) => chalk.bold.blue(content);
   const success = (content: string) => chalk.bold.green(content);

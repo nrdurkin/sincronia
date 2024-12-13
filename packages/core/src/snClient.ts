@@ -1,9 +1,9 @@
-import { Sinc, SN } from "@sincronia/types";
+import { Sinc, SN, TSFIXME } from "@sincronia/types";
 import axios, { AxiosPromise, AxiosResponse } from "axios";
 import rateLimit from "axios-rate-limit";
 import { wait } from "./genericUtils";
 import { logger } from "./Logger";
-import * as ConfigManager from "./config";
+import { ConfigManager } from "./config";
 import { updateRecordTrackedVersion } from "./appUtils";
 import { constructEndpoint } from "./services/serviceNow";
 import { connection } from "./services/connection";
@@ -90,9 +90,10 @@ export const snClient = (
   );
 
   const getAppList = () => {
-    const endpoint = "api/x_nuvo_sinc/sinc/getAppList";
+    const endpoint1 =
+      "/api/now/table/sys_app?sysparm_fields=name,scope,sys_id&sysparm_query=ORDERBYscope";
     type AppListResponse = Sinc.SNAPIResponse<SN.App[]>;
-    return client.get<AppListResponse>(endpoint);
+    return client.get<AppListResponse>(endpoint1);
   };
 
   const updateATFfile = (contents: string, sysId: string) => {
@@ -167,16 +168,6 @@ export const snClient = (
     });
   };
 
-  /**
-   * Has NG
-   * @returns
-   */
-  const getCurrentScope = () => {
-    const endpoint = "api/x_nuvo_sinc/sinc/getCurrentScope";
-    type ScopeResponse = Sinc.SNAPIResponse<SN.ScopeObj>;
-    return client.get<ScopeResponse>(endpoint);
-  };
-
   const createUpdateSet = (updateSetName: string) => {
     const endpoint = `api/now/table/sys_update_set`;
     type UpdateSetCreateResponse = Sinc.SNAPIResponse<SN.UpdateSetRecord>;
@@ -225,18 +216,6 @@ export const snClient = (
       type: "string",
       user: userSysId,
     });
-  };
-
-  const getMissingFiles = (
-    missingFiles: SN.MissingFileTableMap,
-    tableOptions: Sinc.ITableOptionsMap
-  ) => {
-    const endpoint = `api/x_nuvo_sinc/sinc/bulkDownload`;
-    type TableMap = Sinc.SNAPIResponse<SN.TableMap>;
-    // console.log(JSON.stringify({ missingFiles, tableOptions }));
-    // console.log(JSON.stringify(missingFiles.sys_ui_action));
-
-    return client.post<TableMap>(endpoint, { missingFiles, tableOptions });
   };
 
   /**
@@ -300,7 +279,7 @@ export const snClient = (
     return changes;
   };
 
-  const getVersionData = async (names: string[]): Promise<any> => {
+  const getVersionData = async (names: string[]): Promise<TSFIXME> => {
     const endpoint = `api/now/table/sys_update_version?sysparm_query=state=current^nameIN${names.join(
       ","
     )}&sysparm_fields=sys_id,name`;
@@ -316,12 +295,10 @@ export const snClient = (
     getCurrentAppUserPrefSysId,
     updateCurrentAppUserPref,
     createCurrentAppUserPref,
-    getCurrentScope,
     createUpdateSet,
     getCurrentUpdateSetUserPref,
     updateCurrentUpdateSetUserPref,
     createCurrentUpdateSetUserPref,
-    getMissingFiles,
     getManifest,
     getCurrentUpdateSetChanges,
   };

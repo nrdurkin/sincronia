@@ -1,16 +1,7 @@
 import { Sinc, TSFIXME } from "@sincronia/types";
-import {
-  devCommand,
-  refreshCommand,
-  pushCommand,
-  downloadCommand,
-  initCommand,
-  buildCommand,
-  deployCommand,
-  statusCommand,
-} from "./commands";
+import * as Commands from "./commands";
 import yargs from "yargs";
-export async function initCommands() {
+export async function initCommands(): Promise<void> {
   const sharedOptions = {
     logLevel: {
       default: "info",
@@ -18,7 +9,12 @@ export async function initCommands() {
   };
 
   yargs
-    .command(["dev", "d"], "Start Development Mode", sharedOptions, devCommand)
+    .command(
+      ["dev", "d"],
+      "Start Development Mode",
+      sharedOptions,
+      Commands.dev
+    )
     .option("current-us", {
       alias: "c",
       type: "boolean",
@@ -30,7 +26,7 @@ export async function initCommands() {
       ["refresh", "r"],
       "Refresh Manifest and download new files since last refresh",
       sharedOptions,
-      refreshCommand
+      Commands.refresh
     )
     .option("current-us", {
       alias: "c",
@@ -74,7 +70,7 @@ export async function initCommands() {
         return cmdArgs;
       },
       (args: TSFIXME) => {
-        pushCommand(args as Sinc.PushCmdArgs);
+        Commands.push(args as Sinc.PushCmdArgs);
       }
     )
     .command(
@@ -82,14 +78,14 @@ export async function initCommands() {
       "Downloads a scoped application's files from ServiceNow. Must specify a scope prefix for a scoped app.",
       sharedOptions,
       (args: TSFIXME) => {
-        downloadCommand(args as Sinc.CmdDownloadArgs);
+        Commands.download(args as Sinc.CmdDownloadArgs);
       }
     )
     .command(
       "init",
       "Provisions an initial project for you",
       sharedOptions,
-      initCommand
+      Commands.init
     )
     .command(
       "build",
@@ -107,20 +103,20 @@ export async function initCommands() {
         return cmdArgs;
       },
       (args: TSFIXME) => {
-        buildCommand(args);
+        Commands.build(args);
       }
     )
     .command(
       "deploy",
       "Deploy local build files to the scoped application",
       sharedOptions,
-      deployCommand
+      Commands.deploy
     )
     .command(
       "status",
       "Get information about the connected instance",
       sharedOptions,
-      statusCommand
+      Commands.status
     )
     .help().argv;
 }

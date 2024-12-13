@@ -1,8 +1,9 @@
-import { SN, Sinc } from "@sincronia/types";
+import { SN, Sinc, TSFIXME } from "@sincronia/types";
 import path from "path";
 import ProgressBar from "progress";
+import * as fWrite from "./utils/writeFiles";
 import * as fUtils from "./FileUtils";
-import * as ConfigManager from "./config";
+import { ConfigManager } from "./config";
 import { PUSH_RETRY_LIMIT, PUSH_RETRY_WAIT } from "./constants";
 import PluginManager from "./PluginManager";
 import {
@@ -127,12 +128,10 @@ export const syncManifest = async (
     const manifestContent = currentUpdateSetOnly ? curManifest : newManifest;
 
     logger.info("Writing new manifest file...");
-    fUtils.writeManifestFile(manifestContent);
-
+    ConfigManager.updateManifest(manifestContent);
     logger.info("Finding and creating missing files...");
     await processMissingFiles(manifestContent);
-    ConfigManager.updateManifest(manifestContent);
-  } catch (e: any) {
+  } catch (e: TSFIXME) {
     logger.error("Encountered error while refreshing! ❌");
     logger.error(e.toString());
   }
@@ -142,7 +141,7 @@ export const updateRecordTrackedVersion = async (
   table: string,
   recordId: string,
   version: string
-) => {
+): Promise<void> => {
   const curManifest = await ConfigManager.getManifest();
   if (!curManifest) throw new Error("No manifest file loaded!");
 
@@ -152,10 +151,10 @@ export const updateRecordTrackedVersion = async (
     {}
   );
 
-  forEach(records, (metadata, fname) => {
+  forEach(records, (metadata, _) => {
     if (metadata.sys_id === recordId) metadata.version = version;
   });
-  fUtils.writeManifestFile(curManifest);
+  fWrite.writeManifestFile(curManifest);
 };
 
 const markFileMissing = (missingObj: SN.MissingFileTableMap) => (
@@ -282,7 +281,6 @@ export const processMissingFiles = async (
   try {
     const missing = await findMissingFiles(newManifest);
     const { tableOptions = {} } = ConfigManager.getConfig();
-    const client = defaultClient();
     const filesToProcess = await ng_getMissingFiles(missing);
     await processTablesInManifest(filesToProcess, false);
   } catch (e) {
@@ -290,7 +288,9 @@ export const processMissingFiles = async (
   }
 };
 
-export const groupAppFiles = (fileCtxs: Sinc.FileContext[]) => {
+export const groupAppFiles = (
+  fileCtxs: Sinc.FileContext[]
+): Sinc.BuildableRecord[] => {
   const combinedFiles = fileCtxs.reduce((groupMap, cur) => {
     const { tableName, targetField, sys_id } = cur;
     const key = `${tableName}-${sys_id}`;
@@ -375,8 +375,8 @@ const pushRec = async (
       }
     );
     return await processPushResponse(pushRes, recSummary, table, sysId);
-  } catch (e: any) {
-    const errMsg = e.message || "Too many retries";
+  } catch (e: unknown) {
+    const errMsg = e instanceof Error ? e.message : "Too many retries";
     return { success: false, message: `${recSummary} : ${errMsg}` };
   }
 };
@@ -385,7 +385,7 @@ export const pushFiles = async (
   recs: Sinc.BuildableRecord[]
 ): Promise<Sinc.PushResult[]> => {
   const client = defaultClient();
-  const tick = getProgTick(logger.getLogLevel(), recs.length * 2) || (() => {});
+  const tick = getProgTick(logger.getLogLevel(), recs.length * 2);
   const pushResultPromises = recs.map(async (rec) => {
     const fieldNames = Object.keys(rec.fields);
     const recSummary = summarizeRecord(
@@ -462,10 +462,7 @@ export const pushFiles = async (
 export const summarizeRecord = (table: string, recDescriptor: string): string =>
   `${table} > ${recDescriptor}`;
 
-const getProgTick = (
-  logLevel: string,
-  total: number
-): (() => void) | undefined => {
+const getProgTick = (logLevel: string, total: number): (() => void) => {
   if (logLevel === "info") {
     const progBar = new ProgressBar(":bar (:percent)", {
       total,
@@ -476,7 +473,7 @@ const getProgTick = (
     };
   }
   // no-op at other log levels
-  return undefined;
+  return () => undefined;
 };
 
 const writeBuildFile = async (
@@ -522,8 +519,7 @@ const writeBuildFile = async (
 export const buildFiles = async (
   fileList: Sinc.BuildableRecord[]
 ): Promise<Sinc.BuildResult[]> => {
-  const tick =
-    getProgTick(logger.getLogLevel(), fileList.length * 2) || (() => {});
+  const tick = getProgTick(logger.getLogLevel(), fileList.length * 2);
   const buildPromises = fileList.map(async (rec) => {
     const { fields, table } = rec;
     const fieldNames = Object.keys(fields);
@@ -573,8 +569,8 @@ const swapServerScope = async (scopeId: string): Promise<void> => {
     if (curAppUserPrefId !== "")
       await client.updateCurrentAppUserPref(scopeId, curAppUserPrefId);
     else await client.createCurrentAppUserPref(scopeId, userSysId);
-  } catch (e: any) {
-    logger.error(e);
+  } catch (e: unknown) {
+    if (e instanceof Error) logger.error(e.message);
     throw e;
   }
 };
@@ -583,7 +579,9 @@ const swapServerScope = async (scopeId: string): Promise<void> => {
  * Creates a new update set and assigns it to the current user.
  * @param updateSetName - does not create update set if value is blank
  */
-export const createAndAssignUpdateSet = async (updateSetName = "") => {
+export const createAndAssignUpdateSet = async (
+  updateSetName = ""
+): Promise<{ name: string; id: string }> => {
   logger.info(`Update Set Name: ${updateSetName}`);
   const client = defaultClient();
   const { sys_id: updateSetSysId } = await unwrapSNResponse(

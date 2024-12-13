@@ -2,7 +2,7 @@ import { SN } from "@sincronia/types";
 import { keys, map, get, forEach, reduce } from "lodash";
 import { tableData } from "./getManifest";
 import { connection } from "./services/connection";
-import * as ConfigManager from "./config";
+import { ConfigManager } from "./config";
 import { constructEndpoint } from "./services/serviceNow";
 
 export const ng_getMissingFiles = async (

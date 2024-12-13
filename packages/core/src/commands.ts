@@ -1,5 +1,5 @@
 import { Sinc } from "@sincronia/types";
-import * as ConfigManager from "./config";
+import { ConfigManager } from "./config";
 import { startWatching } from "./Watcher";
 import * as AppUtils from "./appUtils";
 import { startWizard } from "./wizard";
@@ -16,15 +16,11 @@ import { gitDiffToEncodedPaths } from "./gitUtils";
 import { encodedPathsToFilePaths } from "./FileUtils";
 import { ng_getCurrentScope } from "./services/serviceNow";
 
-async function scopeCheck(
-  successFunc: () => void,
-  swapScopes: boolean = false
-) {
+async function scopeCheck(successFunc: () => void, swapScopes = false) {
   try {
     const scopeCheck = await AppUtils.checkScope(swapScopes);
     if (!scopeCheck.match) {
       scopeCheckMessage(scopeCheck);
-      // Throw exception to register this as an error
       throw new Error();
     } else {
       successFunc();
@@ -42,14 +38,14 @@ function setLogLevel(args: Sinc.SharedCmdArgs) {
   logger.setLogLevel(args.logLevel);
 }
 
-export async function devCommand(args: Sinc.SharedCmdArgs) {
+export async function dev(args: Sinc.SharedCmdArgs) {
   setLogLevel(args);
   scopeCheck(async () => {
     startWatching(ConfigManager.getSourcePath());
     devModeLog();
 
-    let refresher = () => {
-      refreshCommand(args, false);
+    const refresher = () => {
+      refresh(args, false);
     };
     // let interval = ConfigManager.getRefresh();
     // if (interval && interval > 0) {
@@ -59,10 +55,7 @@ export async function devCommand(args: Sinc.SharedCmdArgs) {
   });
 }
 
-export async function refreshCommand(
-  args: Sinc.SharedCmdArgs,
-  log: boolean = true
-) {
+export async function refresh(args: Sinc.SharedCmdArgs, log = true) {
   const { currentUs = false } = args;
   setLogLevel(args);
   scopeCheck(async () => {
@@ -76,7 +69,7 @@ export async function refreshCommand(
     }
   });
 }
-export async function pushCommand(args: Sinc.PushCmdArgs): Promise<void> {
+export async function push(args: Sinc.PushCmdArgs): Promise<void> {
   setLogLevel(args);
   scopeCheck(async () => {
     try {
@@ -109,7 +102,7 @@ export async function pushCommand(args: Sinc.PushCmdArgs): Promise<void> {
       // Does not create update set if updateSetName is blank
       if (updateSet) {
         if (!skipPrompt) {
-          let answers: { confirmed: boolean } = await inquirer.prompt([
+          const answers: { confirmed: boolean } = await inquirer.prompt([
             {
               type: "confirm",
               name: "confirmed",
@@ -135,10 +128,10 @@ export async function pushCommand(args: Sinc.PushCmdArgs): Promise<void> {
     }
   }, args.scopeSwap);
 }
-export async function downloadCommand(args: Sinc.CmdDownloadArgs) {
+export async function download(args: Sinc.CmdDownloadArgs) {
   setLogLevel(args);
   try {
-    let answers: { confirmed: boolean } = await inquirer.prompt([
+    const answers: { confirmed: boolean } = await inquirer.prompt([
       {
         type: "confirm",
         name: "confirmed",
@@ -162,7 +155,7 @@ export async function downloadCommand(args: Sinc.CmdDownloadArgs) {
     throw e;
   }
 }
-export async function initCommand(args: Sinc.SharedCmdArgs) {
+export async function init(args: Sinc.SharedCmdArgs) {
   setLogLevel(args);
   try {
     await startWizard();
@@ -171,7 +164,7 @@ export async function initCommand(args: Sinc.SharedCmdArgs) {
   }
 }
 
-export async function buildCommand(args: Sinc.BuildCmdArgs) {
+export async function build(args: Sinc.BuildCmdArgs) {
   setLogLevel(args);
   try {
     const encodedPaths = await gitDiffToEncodedPaths(args.diff);
@@ -204,7 +197,7 @@ async function getDeployPaths(): Promise<string[]> {
   return encodedPathsToFilePaths(ConfigManager.getBuildPath());
 }
 
-export async function deployCommand(args: Sinc.SharedCmdArgs): Promise<void> {
+export async function deploy(args: Sinc.SharedCmdArgs): Promise<void> {
   setLogLevel(args);
   scopeCheck(async () => {
     try {
@@ -237,7 +230,7 @@ export async function deployCommand(args: Sinc.SharedCmdArgs): Promise<void> {
   });
 }
 
-export async function statusCommand() {
+export async function status() {
   try {
     const scopeObj = await ng_getCurrentScope();
     logger.info(`Instance: ${process.env.SN_INSTANCE}`);
