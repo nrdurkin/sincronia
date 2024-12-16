@@ -4,7 +4,7 @@ import ProgressBar from "progress";
 import * as fUtils from "./utils/fileUtils";
 import { ConfigManager } from "./configs/config";
 import { PUSH_RETRY_LIMIT, PUSH_RETRY_WAIT } from "./configs/constants";
-import PluginManager from "./PluginManager";
+import PluginManager from "./utils/PluginManager";
 import {
   defaultClient,
   processPushResponse,
@@ -18,6 +18,7 @@ import {
   getCurrentScope,
   getUserSysId,
   snGetTable,
+  upsertSNRecord,
 } from "./services/serviceNow";
 import { parseString } from "xml2js";
 import { Tables } from "./configs/constants";
@@ -361,13 +362,14 @@ export const swapScope = async (): Promise<SN.ScopeObj> => {
 
 const swapServerScope = async (scopeId: string): Promise<void> => {
   try {
-    const client = defaultClient();
     const userSysId = await getUserSysId();
-    const curAppUserPrefId = await client.getCurrentAppUserPrefSysId(userSysId);
-    // If not user pref record exists, create it.
-    if (curAppUserPrefId !== "")
-      await client.updateCurrentAppUserPref(scopeId, curAppUserPrefId);
-    else await client.createCurrentAppUserPref(scopeId, userSysId);
+    await upsertSNRecord(
+      Tables.UserPreference,
+      {
+        sysparm_query: { user: userSysId, name: "apps.current_app" },
+      },
+      { value: scopeId, type: "string" }
+    );
   } catch (e: unknown) {
     if (e instanceof Error) logger.error(e.message);
     throw e;
@@ -387,18 +389,14 @@ export const createAndAssignUpdateSet = async (
     client.createUpdateSet(updateSetName)
   );
   const userSysId = await getUserSysId();
-  const curUpdateSetUserPrefId = await client.getCurrentUpdateSetUserPref(
-    userSysId
-  );
 
-  if (curUpdateSetUserPrefId !== "") {
-    await client.updateCurrentUpdateSetUserPref(
-      updateSetSysId,
-      curUpdateSetUserPrefId
-    );
-  } else {
-    await client.createCurrentUpdateSetUserPref(updateSetSysId, userSysId);
-  }
+  await upsertSNRecord(
+    Tables.UserPreference,
+    {
+      sysparm_query: { user: userSysId, name: Tables.UpdateSet },
+    },
+    { value: updateSetSysId, type: "string" }
+  );
   return {
     name: updateSetName,
     id: updateSetSysId,

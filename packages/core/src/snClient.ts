@@ -85,32 +85,6 @@ export const snClient = (authParams: Sinc.LoginAnswers) => {
     return connection.patch(endpoint, fields);
   };
 
-  const getCurrentAppUserPrefSysId = async (userSysId: string) => {
-    const data = await snGetTable(Tables.UserPreference, {
-      sysparm_query: { user: userSysId, name: "apps.current_app" },
-      sysparm_fields: ["sys_id"],
-    });
-    return data[0].sys_id;
-  };
-
-  const updateCurrentAppUserPref = (
-    appSysId: string,
-    userPrefSysId: string
-  ) => {
-    const endpoint = `api/now/table/${Tables.UserPreference}/${userPrefSysId}`;
-    return connection.put(endpoint, { value: appSysId });
-  };
-
-  const createCurrentAppUserPref = (appSysId: string, userSysId: string) => {
-    const endpoint = `api/now/table/${Tables.UserPreference}`;
-    return connection.post(endpoint, {
-      value: appSysId,
-      name: "apps.current_app",
-      type: "string",
-      user: userSysId,
-    });
-  };
-
   const createUpdateSet = (updateSetName: string) => {
     const endpoint = `api/now/table/${Tables.UpdateSet}`;
     type UpdateSetCreateResponse = Sinc.SNAPIResponse<SN.UpdateSetRecord>;
@@ -125,35 +99,6 @@ export const snClient = (authParams: Sinc.LoginAnswers) => {
       sysparm_fields: ["value"],
     });
     return data[0]?.value || "";
-  };
-
-  const getCurrentUpdateSetUserPref = async (userSysId: string) => {
-    const data = await snGetTable(Tables.UserPreference, {
-      sysparm_query: `user=${userSysId}^name=${Tables.UpdateSet}`,
-      sysparm_fields: ["sys_id"],
-    });
-    return data[0].sys_id;
-  };
-
-  const updateCurrentUpdateSetUserPref = (
-    updateSetSysId: string,
-    userPrefSysId: string
-  ) => {
-    const endpoint = `api/now/table/${Tables.UserPreference}/${userPrefSysId}`;
-    return connection.put(endpoint, { value: updateSetSysId });
-  };
-
-  const createCurrentUpdateSetUserPref = (
-    updateSetSysId: string,
-    userSysId: string
-  ) => {
-    const endpoint = `api/now/table/${Tables.UserPreference}`;
-    return connection.put(endpoint, {
-      value: updateSetSysId,
-      name: "sys_update_set",
-      type: "string",
-      user: userSysId,
-    });
   };
 
   const getCurrentUpdateSetChanges = async (): Promise<
@@ -191,13 +136,7 @@ export const snClient = (authParams: Sinc.LoginAnswers) => {
 
   return {
     updateRecord,
-    getCurrentAppUserPrefSysId,
-    updateCurrentAppUserPref,
-    createCurrentAppUserPref,
     createUpdateSet,
-    getCurrentUpdateSetUserPref,
-    updateCurrentUpdateSetUserPref,
-    createCurrentUpdateSetUserPref,
     getCurrentUpdateSetChanges,
   };
 };

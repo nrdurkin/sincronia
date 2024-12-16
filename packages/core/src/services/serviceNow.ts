@@ -42,6 +42,24 @@ const tableApiEndpoint = (table: string, params: SysParams): string => {
   return `api/now/table/${table}?${urlParams.join("&")}`;
 };
 
+export const upsertSNRecord = async (
+  table: string,
+  params: Omit<SysParams, "sysparm_fields">,
+  updates: Record<string, string>
+): Promise<void> => {
+  const data = await snGetTable(table, {
+    ...params,
+    sysparm_fields: ["sys_id"],
+  });
+  if (data.length) {
+    const endpoint = `api/now/table/${table}/${data[0].sys_id}`;
+    await connection.put(endpoint, updates);
+  } else {
+    const endpoint = `api/now/table/${table}`;
+    await connection.put(endpoint, { ...params, ...updates });
+  }
+};
+
 export const getCurrentScope = async (): Promise<SN.ScopeObj> => {
   const { SN_USER: username = "" } = process.env;
   const data = await snGetTable(Tables.UserPreference, {

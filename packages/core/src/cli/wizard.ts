@@ -1,10 +1,8 @@
 import { SN, Sinc } from "@sincronia/types";
 import inquirer from "inquirer";
 import { ConfigManager } from "../configs/config";
-import * as AppUtils from "../appUtils";
 import fs, { promises as fsp } from "fs";
 import { logger } from "./Logger";
-import { unwrapSNResponse, defaultClient } from "../snClient";
 import { getAppList } from "../services/serviceNow";
 import { fetchManifest, processManifest } from "../utils/processManifest";
 
