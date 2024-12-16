@@ -1,12 +1,11 @@
 import { Sinc, SN } from "@sincronia/types";
 import { AxiosPromise, AxiosResponse } from "axios";
-import { wait } from "./genericUtils";
-import { logger } from "./Logger";
-import { ConfigManager } from "./config";
-import { updateRecordTrackedVersion } from "./appUtils";
+import { logger } from "./cli/Logger";
+import { ConfigManager } from "./configs/config";
 import { getUserSysId, snGetTable } from "./services/serviceNow";
-import { authConnection, connection } from "./services/connection";
+import { connection } from "./services/connection";
 import { Tables } from "./configs/constants";
+import { updateRecordTrackedVersion } from "./utils/processManifest";
 
 export const retryOnErr = async <T>(
   f: () => Promise<T>,
@@ -22,7 +21,7 @@ export const retryOnErr = async <T>(
       throw e;
     }
     if (onRetry) onRetry(newRetries);
-    await wait(msBetween);
+    await new Promise((resolve, reject) => setTimeout(resolve, msBetween));
     return retryOnErr(f, newRetries, msBetween, onRetry);
   }
 };
@@ -157,29 +156,6 @@ export const snClient = (authParams: Sinc.LoginAnswers) => {
     });
   };
 
-  /**
-   * Has NG
-   * @param scope
-   * @param config
-   * @param withFiles
-   * @returns
-   */
-  const getManifest = (
-    scope: string,
-    config: Sinc.Config,
-    withFiles = false
-  ) => {
-    const endpoint = `api/x_nuvo_sinc/sinc/getManifest/${scope}`;
-    const { includes = {}, excludes = {}, tableOptions = {} } = config;
-    type AppResponse = Sinc.SNAPIResponse<SN.AppManifest>;
-    return authConnection(authParams).post<AppResponse>(endpoint, {
-      includes,
-      excludes,
-      tableOptions,
-      withFiles,
-    });
-  };
-
   const getCurrentUpdateSetChanges = async (): Promise<
     Record<string, string[]>
   > => {
@@ -222,7 +198,6 @@ export const snClient = (authParams: Sinc.LoginAnswers) => {
     getCurrentUpdateSetUserPref,
     updateCurrentUpdateSetUserPref,
     createCurrentUpdateSetUserPref,
-    getManifest,
     getCurrentUpdateSetChanges,
   };
 };

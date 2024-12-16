@@ -1,11 +1,12 @@
 import { SN, Sinc } from "@sincronia/types";
 import inquirer from "inquirer";
-import { ConfigManager } from "./config";
-import * as AppUtils from "./appUtils";
+import { ConfigManager } from "../configs/config";
+import * as AppUtils from "../appUtils";
 import fs, { promises as fsp } from "fs";
 import { logger } from "./Logger";
-import { unwrapSNResponse, defaultClient } from "./snClient";
-import { getAppList } from "./services/serviceNow";
+import { unwrapSNResponse, defaultClient } from "../snClient";
+import { getAppList } from "../services/serviceNow";
+import { fetchManifest, processManifest } from "../utils/processManifest";
 
 export async function startWizard(): Promise<void> {
   const loginAnswers = await getLoginInfo();
@@ -20,12 +21,12 @@ export async function startWizard(): Promise<void> {
     try {
       ConfigManager.getManifest();
     } catch (e) {
-      const selectedApp = await showAppList(apps);
-      if (!selectedApp) {
+      const scope = await showAppList(apps);
+      if (!scope) {
         return;
       }
       logger.info("Downloading app...");
-      await downloadApp(selectedApp);
+      await downloadApp(scope);
     }
     logger.success(
       "You are all set up 👍 Try running 'npx sinc dev' to begin development mode."
@@ -106,10 +107,8 @@ async function showAppList(apps: SN.App[]): Promise<string> {
 
 async function downloadApp(scope: string) {
   try {
-    const client = defaultClient();
-    const config = ConfigManager.getConfig();
-    const man = await unwrapSNResponse(client.getManifest(scope, config, true));
-    await AppUtils.processManifest(man);
+    const man = await fetchManifest(scope);
+    await processManifest(man);
   } catch (e: unknown) {
     if (e instanceof Error) logger.error(e.toString());
     throw new Error("Failed to download files!");

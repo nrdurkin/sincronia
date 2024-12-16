@@ -1,16 +1,16 @@
 import { SN, Sinc, TSFIXME } from "@sincronia/types";
 import path from "path";
 import { promises as fsp } from "fs";
-import { logger } from "./Logger";
-import { includes, excludes, tableOptions } from "./configs/defaultOptions";
-import * as fUtils from "./utils/FileUtils";
+import { logger } from "../cli/Logger";
+import * as fUtils from "../utils/fileUtils";
+import defaultOptions from "./defaultOptions";
 
 const DEFAULT_CONFIG: Sinc.Config = {
   sourceDirectory: "src",
   buildDirectory: "build",
   rules: [],
-  includes,
-  excludes,
+  includes: [],
+  excludes: [],
   tableOptions: {},
   refreshInterval: 30,
 };
@@ -172,12 +172,13 @@ class Manager {
         const projectConfig: Sinc.Config = (await import(configPath)).default;
         //merge in includes/excludes
         const {
-          includes: pIncludes = {},
-          excludes: pExcludes = {},
+          includes: pIncludes = [],
+          excludes: pExcludes = [],
           tableOptions: pTableOptions = {},
         } = projectConfig;
-        projectConfig.includes = Object.assign(includes, pIncludes);
-        projectConfig.excludes = Object.assign(excludes, pExcludes);
+        const { includes, excludes, tableOptions } = defaultOptions;
+        projectConfig.includes = [...new Set([...includes, ...pIncludes])];
+        projectConfig.excludes = [...new Set([...excludes, ...pExcludes])];
         projectConfig.tableOptions = Object.assign(tableOptions, pTableOptions);
         return projectConfig;
       } else {

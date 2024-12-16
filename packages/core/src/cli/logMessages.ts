@@ -2,8 +2,6 @@ import { Sinc } from "@sincronia/types";
 import { logger } from "./Logger";
 import chalk from "chalk";
 
-export const log = console.log;
-
 export function scopeCheckMessage(scopeCheck: Sinc.ScopeCheckResult): void {
   const sScope = chalk.blue(scopeCheck.sessionScope);
   const mScope = chalk.blue(scopeCheck.manifestScope);

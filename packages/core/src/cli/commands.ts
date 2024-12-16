@@ -1,7 +1,7 @@
 import { Sinc } from "@sincronia/types";
-import { ConfigManager } from "./config";
+import { ConfigManager } from "../configs/config";
 import { startWatching } from "./Watcher";
-import * as AppUtils from "./appUtils";
+import * as AppUtils from "../appUtils";
 import { startWizard } from "./wizard";
 import { logger } from "./Logger";
 import {
@@ -10,11 +10,11 @@ import {
   logPushResults,
   logBuildResults,
 } from "./logMessages";
-import { defaultClient, unwrapSNResponse } from "./snClient";
 import inquirer from "inquirer";
-import { gitDiffToEncodedPaths } from "./gitUtils";
-import { encodedPathsToFilePaths } from "./utils/FileUtils";
-import { getCurrentScope } from "./services/serviceNow";
+import { gitDiffToEncodedPaths } from "../utils/gitUtils";
+import { encodedPathsToFilePaths } from "../utils/fileUtils";
+import { getCurrentScope } from "../services/serviceNow";
+import { fetchManifest, processManifest } from "../utils/processManifest";
 
 async function scopeCheck(successFunc: () => void, swapScopes = false) {
   try {
@@ -128,28 +128,22 @@ export async function push(args: Sinc.PushCmdArgs): Promise<void> {
     }
   }, args.scopeSwap);
 }
-export async function download(args: Sinc.CmdDownloadArgs) {
+export async function download(args: Sinc.CmdDownloadArgs): Promise<void> {
   setLogLevel(args);
   try {
-    const answers: { confirmed: boolean } = await inquirer.prompt([
+    const { confirmed } = (await inquirer.prompt([
       {
         type: "confirm",
         name: "confirmed",
         message: "Downloading will overwrite manifest and files. Are you sure?",
         default: false,
       },
-    ]);
-    if (!answers["confirmed"]) {
-      return;
-    }
+    ])) as { confirmed: boolean };
+    if (!confirmed) return;
     logger.info("Downloading manifest and files...");
-    const client = defaultClient();
-    const config = ConfigManager.getConfig();
-    const man = await unwrapSNResponse(
-      client.getManifest(args.scope, config, true)
-    );
+    const man = await fetchManifest(args.scope);
     logger.info("Creating local files from manifest...");
-    await AppUtils.processManifest(man, true);
+    await processManifest(man, true);
     logger.success("Download complete ✅");
   } catch (e) {
     throw e;

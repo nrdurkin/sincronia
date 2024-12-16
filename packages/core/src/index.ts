@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import dotenv from "dotenv";
-import { ConfigManager } from "./config";
+import { ConfigManager } from "./configs/config";
 
 export const init = async (): Promise<void> => {
   try {
@@ -9,7 +9,7 @@ export const init = async (): Promise<void> => {
     dotenv.config({
       path,
     });
-    (await import("./commander")).initCommands();
+    (await import("./cli/commander")).initCommands();
   } catch (e) {
     console.log(e);
     process.exit(1);

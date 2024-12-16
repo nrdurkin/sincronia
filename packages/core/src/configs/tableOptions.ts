@@ -1,21 +1,10 @@
-export type FileItem = {
-  name: string;
-  type: string;
-};
-
-export type TableItem = {
-  differentiatorField?: string | string[];
-  displayField?: string;
-  files?: FileItem[] | string[];
-};
-
-export type TableData = Record<string, TableItem>;
+import { Sinc, SN } from "@sincronia/types";
 
 export type TableInfo = Record<
   string,
   {
     name: string;
-    files: FileItem[];
+    files: SN.File[];
     displayField: string;
     differentiatorField: string | string[];
     fields: string[];
@@ -27,7 +16,7 @@ export type RecordItem = Record<
   { value: string; displayValue: string }
 >;
 
-export const sincConfigDefault: TableData = {
+export const defaultTableOptions: Sinc.ITableOptionsMap = {
   sysauto_script: {
     files: [
       {
@@ -463,5 +452,9 @@ export const sincConfigDefault: TableData = {
       },
     ],
     displayField: "table",
+  },
+
+  content_css: {
+    files: [{ name: "style", type: "css" }],
   },
 };

@@ -1,9 +1,9 @@
 import chokidar from "chokidar";
 import { logFilePush } from "./logMessages";
 import { debounce } from "lodash";
-import { getFileContextFromPath } from "./utils/FileUtils";
+import { getFileContextFromPath } from "../utils/fileUtils";
 import { Sinc } from "@sincronia/types";
-import { groupAppFiles, pushFiles } from "./appUtils";
+import { groupAppFiles, pushFiles } from "../appUtils";
 const DEBOUNCE_MS = 300;
 let pushQueue: string[] = [];
 let watcher: chokidar.FSWatcher | undefined = undefined;

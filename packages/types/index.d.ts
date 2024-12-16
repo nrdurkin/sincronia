@@ -21,9 +21,9 @@ export namespace Sinc {
     sourceDirectory: string;
     buildDirectory: string;
     rules?: PluginRule[];
-    includes?: TablePropMap;
-    excludes?: TablePropMap;
-    tableOptions: ITableOptionsMap;
+    includes?: string[];
+    excludes?: string[];
+    tableOptions: Record<string, ITableOptions>;
     refreshInterval: number;
   }
 
@@ -34,7 +34,8 @@ export namespace Sinc {
   interface ITableOptions {
     displayField?: string;
     differentiatorField?: string | string[];
-    query: string;
+    query?: string;
+    files?: Omit<SN.File, "content">[];
   }
 
   interface FieldConfig {
@@ -132,7 +133,7 @@ export namespace Sinc {
   }
 
   type SuccessPromiseResult<T> = { status: "fulfilled"; value: T };
-  type FailPromiseResult = { status: "rejected"; reason: any };
+  type FailPromiseResult = { status: "rejected"; reason: Error };
   type PromiseResult<T> = SuccessPromiseResult<T> | FailPromiseResult;
 
   interface SNAPIResponse<T> {
@@ -220,7 +221,7 @@ export namespace SN {
   }
   interface App {
     scope: string;
-    displayName: string;
+    name: string;
     sys_id: string;
   }
 

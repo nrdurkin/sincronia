@@ -1,5 +1,5 @@
 import { Sinc } from "@sincronia/types";
-import { ConfigManager } from "./config";
+import { ConfigManager } from "./configs/config";
 import fs from "fs";
 import path from "path";
 const fsp = fs.promises;

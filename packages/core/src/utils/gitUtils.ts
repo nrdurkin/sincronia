@@ -1,10 +1,10 @@
 import * as cp from "child_process";
 import path from "path";
-import { logger } from "./Logger";
-import { PATH_DELIMITER } from "./configs/constants";
-import { ConfigManager } from "./config";
+import { logger } from "../cli/Logger";
+import { PATH_DELIMITER } from "../configs/constants";
+import { ConfigManager } from "../configs/config";
 import fs from "fs";
-import * as fUtils from "./utils/FileUtils";
+import * as fUtils from "./fileUtils";
 
 export const gitDiffToEncodedPaths = async (diff: string) => {
   if (diff !== "") return gitDiff(diff, ConfigManager.getSourcePath());

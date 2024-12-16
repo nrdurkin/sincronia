@@ -1,7 +1,9 @@
 import { Sinc, SN } from "@sincronia/types";
 import { get, map, isEmpty } from "lodash";
-import { authConnection, connection } from "./connection";
+import { authConnection, baseUrlGQL, connection } from "./connection";
 import { Tables } from "../configs/constants";
+import { getGqlQuery } from "./graphQL";
+import { RecordItem } from "src/configs/tableOptions";
 
 type ParamOption = string | { op: string; value: string };
 type SysParams<T = string> = {
@@ -93,4 +95,28 @@ export const getUserSysId = async (
     sysparm_fields: ["sys_id"],
   });
   return data[0].sys_id;
+};
+
+export const getManifestSN = async (
+  scope: string,
+  tablesData: Record<
+    string,
+    {
+      name: string;
+      fields: string[];
+    }
+  >
+): Promise<Record<string, { list: RecordItem[] }>> => {
+  const res = await connection.post(
+    baseUrlGQL,
+    getGqlQuery(
+      map(tablesData, ({ name, fields }) => ({
+        table: name,
+        fields,
+        conditions: `sys_scope.scope=${scope}`,
+        pagination: { limit: 10000 },
+      }))
+    )
+  );
+  return get(res, "data.data.query");
 };
