@@ -12,7 +12,7 @@ import { logger } from "../cli/Logger";
 import { getProgTick, summarizeRecord } from "./utils";
 import { buildRec } from "./buildFiles";
 
-export const retryOnErr = async <T>(
+const retryOnErr = async <T>(
   f: () => Promise<T>,
   allowedRetries: number,
   msBetween = 0,
@@ -31,7 +31,7 @@ export const retryOnErr = async <T>(
   }
 };
 
-export const processPushResponse = async (
+const processPushResponse = async (
   response: AxiosResponse,
   recSummary: string,
   table: string,

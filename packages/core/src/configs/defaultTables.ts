@@ -16,7 +16,7 @@ export type RecordItem = Record<
   { value: string; displayValue: string }
 >;
 
-export const defaultTableOptions: Sinc.ITableOptionsMap = {
+export const defaultIncludes: Sinc.ITableOptionsMap = {
   sysauto_script: {
     files: [
       {

@@ -3,15 +3,15 @@ import path from "path";
 import { promises as fsp } from "fs";
 import { logger } from "../cli/Logger";
 import * as fUtils from "../utils/fileUtils";
-import defaultOptions from "./defaultOptions";
+import { defaultIncludes } from "./defaultTables";
+import { pickBy } from "lodash";
 
-const DEFAULT_CONFIG: Sinc.Config = {
+const DEFAULT_CONFIG: Required<Sinc.Config> = {
   sourceDirectory: "src",
   buildDirectory: "build",
   rules: [],
-  includes: [],
   excludes: [],
-  tableOptions: {},
+  includes: {},
   refreshInterval: 30,
 };
 
@@ -171,15 +171,12 @@ class Manager {
       if (configPath) {
         const projectConfig: Sinc.Config = (await import(configPath)).default;
         //merge in includes/excludes
-        const {
-          includes: pIncludes = [],
-          excludes: pExcludes = [],
-          tableOptions: pTableOptions = {},
-        } = projectConfig;
-        const { includes, excludes, tableOptions } = defaultOptions;
-        projectConfig.includes = [...new Set([...includes, ...pIncludes])];
-        projectConfig.excludes = [...new Set([...excludes, ...pExcludes])];
-        projectConfig.tableOptions = Object.assign(tableOptions, pTableOptions);
+        const { excludes = [], includes = {} } = projectConfig;
+        const filteredIncludes = pickBy(
+          defaultIncludes,
+          (_, table) => !excludes.includes(table)
+        );
+        projectConfig.includes = { ...filteredIncludes, ...includes };
         return projectConfig;
       } else {
         logger.warn("Couldn't find config file. Loading default...");

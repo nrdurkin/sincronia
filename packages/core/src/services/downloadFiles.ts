@@ -7,7 +7,7 @@ export const downloadMissingFiles = async (
   missingFiles: SN.MissingFileTableMap
 ): Promise<SN.TableMap> => {
   const currentManifest = await ConfigManager.getManifest();
-  const { tableOptions } = await ConfigManager.getConfig();
+  const { includes } = await ConfigManager.getConfig();
   const result: SN.TableMap = {};
   const filePromises = Object.entries(missingFiles).map(
     ([table, missingRecord]): Promise<{
@@ -19,7 +19,7 @@ export const downloadMissingFiles = async (
           sys_id: { op: "IN", value: keys(missingRecord).join(",") },
         },
         sysparm_fields: [
-          ...map(get(tableOptions, `${table}.files`, []), ({ name }) => name),
+          ...map(get(includes, `${table}.files`, []), ({ name }) => name),
           "sys_id",
         ],
       }).then((list) => ({

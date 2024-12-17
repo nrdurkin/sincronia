@@ -3,7 +3,7 @@ import { get, map, isEmpty } from "lodash";
 import { baseUrlGQL, connection } from "./connection";
 import { Tables } from "../configs/constants";
 import { getGqlQuery } from "./graphQL";
-import { RecordItem } from "../configs/tableOptions";
+import { RecordItem } from "../configs/defaultTables";
 import { AxiosPromise } from "axios";
 import { ConfigManager } from "../configs/config";
 

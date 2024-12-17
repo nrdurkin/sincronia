@@ -1,5 +1,5 @@
 import { get, map, set, compact, forEach, filter, flatMap } from "lodash";
-import { RecordItem } from "../configs/tableOptions";
+import { RecordItem } from "../configs/defaultTables";
 import { getManifestSN, getVersionData } from "../services/serviceNow";
 import { Sinc, SN } from "@sincronia/types";
 import { ConfigManager } from "../configs/config";
@@ -97,9 +97,9 @@ export const fetchManifest = async (scope: string): Promise<SN.AppManifest> => {
   };
 
   await ConfigManager.loadConfigs();
-  const { includes, excludes, tableOptions } = ConfigManager.getConfig();
+  const { includes = {} } = ConfigManager.getConfig();
+  const tables = Object.keys(includes);
 
-  const tables = includes?.filter((t) => !excludes?.includes(t)) || [];
   if (tables.includes(Tables.AtfStep)) {
     //https://www.servicenow.com/community/developer-forum/not-able-to-map-values-to-a-glide-var-type-input-field-using/m-p/1983044
     logger.warn("ATF steps not currently supported.");
@@ -107,17 +107,12 @@ export const fetchManifest = async (scope: string): Promise<SN.AppManifest> => {
   }
   const tablesData: Record<string, TableInfo> = {};
   tables.forEach((t) => {
-    if (tableOptions[t] === undefined) {
-      return logger.warn(
-        `Table ${t} has no tableOptions. Files will not be fetched for ${t}.`
-      );
-    }
     const {
       differentiatorField = [],
       displayField = "",
       files = [],
       query = "",
-    } = tableOptions[t];
+    } = includes[t];
     if (files.length === 0) {
       return logger.warn(
         `Table ${t} has no configured files. Add files to the tableOptions for ${t}.`
