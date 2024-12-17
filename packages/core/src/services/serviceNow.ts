@@ -66,7 +66,7 @@ export const updateRecord = (
   table: string,
   recordId: string,
   fields: Record<string, string>
-): AxiosPromise<any> => {
+): AxiosPromise<void> => {
   if (table === Tables.AtfStep)
     throw new Error("ATF steps not currently supported.");
   const endpoint = `api/now/table/${table}/${recordId}`;

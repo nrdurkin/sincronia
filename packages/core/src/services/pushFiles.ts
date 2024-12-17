@@ -26,7 +26,7 @@ export const retryOnErr = async <T>(
       throw e;
     }
     if (onRetry) onRetry(newRetries);
-    await new Promise((resolve, reject) => setTimeout(resolve, msBetween));
+    await new Promise((resolve, _) => setTimeout(resolve, msBetween));
     return retryOnErr(f, newRetries, msBetween, onRetry);
   }
 };

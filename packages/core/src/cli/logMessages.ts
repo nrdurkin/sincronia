@@ -49,7 +49,7 @@ export function logFilePush(
 }
 
 function multiLog(
-  files: Sinc.FileContext[],
+  _files: Sinc.FileContext[],
   success: boolean,
   resultSet: boolean[],
   successMessage: string,

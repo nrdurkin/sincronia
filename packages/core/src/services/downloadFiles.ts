@@ -41,7 +41,7 @@ export const downloadMissingFiles = async (
           if (!result[table]) result[table] = { records: {} };
           result[table].records[res.name] = {
             ...res,
-            files: res.files.map((f: any) => ({
+            files: res.files.map((f) => ({
               ...f,
               content: record[f.name],
             })),
@@ -55,8 +55,16 @@ export const downloadMissingFiles = async (
 const findRecordInManifest = (
   table: string,
   sysId: string,
-  manifest: any
-): any => {
-  const records = get(manifest, `tables.${table}.records`, {});
-  return reduce(records, (res, rec) => (rec.sys_id === sysId ? rec : res), "");
+  manifest: SN.AppManifest
+): SN.MetaRecord => {
+  const records: Record<string, SN.MetaRecord> = get(
+    manifest,
+    `tables.${table}.records`,
+    {}
+  );
+  return reduce(
+    records,
+    (res, rec) => (rec.sys_id === sysId ? rec : res),
+    {} as SN.MetaRecord
+  );
 };

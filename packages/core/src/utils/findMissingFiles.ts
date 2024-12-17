@@ -58,7 +58,7 @@ const checkRecordsForMissing = async (
 ) => {
   const recNames = Object.keys(records);
   const recPaths = recNames.map(fUtils.appendToPath(tablePath));
-  const checkPromises = recNames.map((recName, index) =>
+  const checkPromises = recNames.map((_recName, index) =>
     fUtils.pathExists(recPaths[index])
   );
   const checks = await Promise.all(checkPromises);
@@ -85,7 +85,7 @@ const checkTablesForMissing = async (
 ) => {
   const tableNames = Object.keys(tables);
   const tablePaths = tableNames.map(fUtils.appendToPath(topPath));
-  const checkPromises = tableNames.map((tableName, index) =>
+  const checkPromises = tableNames.map((_tableName, index) =>
     fUtils.pathExists(tablePaths[index])
   );
   const checks = await Promise.all(checkPromises);

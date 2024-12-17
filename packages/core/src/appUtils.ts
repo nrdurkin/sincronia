@@ -1,4 +1,4 @@
-import { SN, Sinc, TSFIXME } from "@sincronia/types";
+import { SN, Sinc } from "@sincronia/types";
 import * as fUtils from "./utils/fileUtils";
 import { ConfigManager } from "./configs/config";
 import { logger } from "./cli/Logger";
@@ -49,9 +49,9 @@ export const syncManifest = async (
     ConfigManager.updateManifest(manifestContent);
     logger.info("Finding and creating missing files...");
     await processMissingFiles(manifestContent);
-  } catch (e: TSFIXME) {
+  } catch (e: unknown) {
     logger.error("Encountered error while refreshing! ❌");
-    logger.error(e.toString());
+    if (e instanceof Error) logger.error(e.toString());
   }
 };
 

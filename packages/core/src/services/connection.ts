@@ -2,7 +2,7 @@ import { Sinc } from "@sincronia/types";
 import axios from "axios";
 import rateLimit, { RateLimitedAxiosInstance } from "axios-rate-limit";
 
-export const baseUrlGQL = () =>
+export const baseUrlGQL = (): string =>
   `https://${process.env.SN_INSTANCE}/api/now/graphql`;
 
 export const connection = (

@@ -1,4 +1,4 @@
-import { Sinc, TSFIXME } from "@sincronia/types";
+import { Sinc } from "@sincronia/types";
 import * as Commands from "./commands";
 import yargs from "yargs";
 export async function initCommands(): Promise<void> {
@@ -69,7 +69,7 @@ export async function initCommands(): Promise<void> {
         });
         return cmdArgs;
       },
-      (args: TSFIXME) => {
+      (args: unknown) => {
         Commands.push(args as Sinc.PushCmdArgs);
       }
     )
@@ -77,7 +77,7 @@ export async function initCommands(): Promise<void> {
       "download <scope>",
       "Downloads a scoped application's files from ServiceNow. Must specify a scope prefix for a scoped app.",
       sharedOptions,
-      (args: TSFIXME) => {
+      (args: unknown) => {
         Commands.download(args as Sinc.CmdDownloadArgs);
       }
     )
@@ -102,8 +102,8 @@ export async function initCommands(): Promise<void> {
         });
         return cmdArgs;
       },
-      (args: TSFIXME) => {
-        Commands.build(args);
+      (args: unknown) => {
+        Commands.build(args as Sinc.BuildCmdArgs);
       }
     )
     .command(

@@ -6,7 +6,7 @@ import { ConfigManager } from "../configs/config";
 import fs from "fs";
 import * as fUtils from "./fileUtils";
 
-export const gitDiffToEncodedPaths = async (diff: string) => {
+export const gitDiffToEncodedPaths = async (diff: string): Promise<string> => {
   if (diff !== "") return gitDiff(diff, ConfigManager.getSourcePath());
   return ConfigManager.getSourcePath();
 };
@@ -14,7 +14,7 @@ export const gitDiffToEncodedPaths = async (diff: string) => {
 const gitDiff = async (target: string, sourcePath: string): Promise<string> => {
   return new Promise<string>((resolve, reject) => {
     const cmdStr = `git diff --name-status ${target}... -- ${sourcePath}`;
-    cp.exec(cmdStr, (err, stdout, stderr) => {
+    cp.exec(cmdStr, (err, stdout, _stderr) => {
       if (err) {
         reject(err);
       } else {
@@ -24,7 +24,7 @@ const gitDiff = async (target: string, sourcePath: string): Promise<string> => {
   });
 };
 
-export const writeDiff = async (files: string) => {
+export const writeDiff = async (files: string): Promise<void> => {
   const paths = await fUtils.encodedPathsToFilePaths(files);
   logger.silly(`${paths.length} paths found...`);
   logger.silly(JSON.stringify(paths, null, 2));
@@ -59,7 +59,7 @@ const formatGitFiles = async (gitFiles: string) => {
 
 const getRepoRootDir = async (): Promise<string> => {
   return new Promise<string>((resolve, reject) => {
-    cp.exec("git rev-parse --show-toplevel", (err, stdout, stderr) => {
+    cp.exec("git rev-parse --show-toplevel", (err, stdout, _std_err) => {
       if (err) {
         reject(err);
       } else {
