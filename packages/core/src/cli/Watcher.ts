@@ -3,10 +3,10 @@ import { logFilePush } from "./logMessages";
 import { debounce } from "lodash";
 import { getFileContextFromPath } from "../utils/fileUtils";
 import { Sinc } from "@sincronia/types";
-import { groupAppFiles, pushFiles } from "../appUtils";
+import { groupAppFiles } from "../appUtils";
+import { pushFiles } from "../services/pushFiles";
 const DEBOUNCE_MS = 300;
 let pushQueue: string[] = [];
-let watcher: chokidar.FSWatcher | undefined = undefined;
 
 const processQueue = debounce(async () => {
   if (pushQueue.length > 0) {
@@ -24,18 +24,9 @@ const processQueue = debounce(async () => {
   }
 }, DEBOUNCE_MS);
 
-export function startWatching(directory: string) {
-  watcher = chokidar.watch(directory);
-  watcher.on("change", fileChanged);
-}
-
-async function fileChanged(path: string) {
-  pushQueue.push(path);
-  processQueue();
-}
-
-export function stopWatching() {
-  if (watcher) {
-    watcher.close();
-  }
+export function startWatching(directory: string): void {
+  chokidar.watch(directory).on("change", (path) => {
+    pushQueue.push(path);
+    processQueue();
+  });
 }

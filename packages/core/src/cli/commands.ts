@@ -15,6 +15,8 @@ import { gitDiffToEncodedPaths } from "../utils/gitUtils";
 import { encodedPathsToFilePaths } from "../utils/fileUtils";
 import { getCurrentScope } from "../services/serviceNow";
 import { fetchManifest, processManifest } from "../utils/processManifest";
+import { pushFiles } from "../services/pushFiles";
+import { buildFiles } from "../services/buildFiles";
 
 async function scopeCheck(successFunc: () => void, swapScopes = false) {
   try {
@@ -38,7 +40,7 @@ function setLogLevel(args: Sinc.SharedCmdArgs) {
   logger.setLogLevel(args.logLevel);
 }
 
-export async function dev(args: Sinc.SharedCmdArgs) {
+export async function dev(args: Sinc.SharedCmdArgs): Promise<void> {
   setLogLevel(args);
   scopeCheck(async () => {
     startWatching(ConfigManager.getSourcePath());
@@ -47,15 +49,18 @@ export async function dev(args: Sinc.SharedCmdArgs) {
     const refresher = () => {
       refresh(args, false);
     };
-    // let interval = ConfigManager.getRefresh();
-    // if (interval && interval > 0) {
-    //   logger.info(`Checking for new manifest files every ${interval} seconds`);
-    //   // setInterval(refresher, interval * 1000);
-    // }
+    const interval = ConfigManager.getRefresh();
+    if (interval && interval > 0) {
+      logger.info(`Checking for new manifest files every ${interval} seconds`);
+      setInterval(refresher, interval * 1000);
+    }
   });
 }
 
-export async function refresh(args: Sinc.SharedCmdArgs, log = true) {
+export async function refresh(
+  args: Sinc.SharedCmdArgs,
+  log = true
+): Promise<void> {
   const { currentUs = false } = args;
   setLogLevel(args);
   scopeCheck(async () => {
@@ -120,10 +125,10 @@ export async function push(args: Sinc.PushCmdArgs): Promise<void> {
           `New Update Set Created(${newUpdateSet.name}) sys_id:${newUpdateSet.id}`
         );
       }
-      const pushResults = await AppUtils.pushFiles(fileList);
+      const pushResults = await pushFiles(fileList);
       logPushResults(pushResults);
-    } catch (e: any) {
-      logger.getInternalLogger().error(e);
+    } catch (e: unknown) {
+      if (e instanceof Error) logger.getInternalLogger().error(e);
       process.exit(1);
     }
   }, args.scopeSwap);
@@ -143,13 +148,13 @@ export async function download(args: Sinc.CmdDownloadArgs): Promise<void> {
     logger.info("Downloading manifest and files...");
     const man = await fetchManifest(args.scope);
     logger.info("Creating local files from manifest...");
-    await processManifest(man, true);
+    await processManifest(man);
     logger.success("Download complete ✅");
   } catch (e) {
     throw e;
   }
 }
-export async function init(args: Sinc.SharedCmdArgs) {
+export async function init(args: Sinc.SharedCmdArgs): Promise<void> {
   setLogLevel(args);
   try {
     await startWizard();
@@ -158,13 +163,13 @@ export async function init(args: Sinc.SharedCmdArgs) {
   }
 }
 
-export async function build(args: Sinc.BuildCmdArgs) {
+export async function build(args: Sinc.BuildCmdArgs): Promise<void> {
   setLogLevel(args);
   try {
     const encodedPaths = await gitDiffToEncodedPaths(args.diff);
     const fileList = await AppUtils.getAppFileList(encodedPaths);
     logger.info(`${fileList.length} files to build.`);
-    const results = await AppUtils.buildFiles(fileList);
+    const results = await buildFiles(fileList);
     logBuildResults(results);
   } catch (e) {
     process.exit(1);
@@ -216,7 +221,7 @@ export async function deploy(args: Sinc.SharedCmdArgs): Promise<void> {
       logger.silly(`${paths.length} paths found...`);
       logger.silly(JSON.stringify(paths, null, 2));
       const appFileList = await AppUtils.getAppFileList(paths);
-      const pushResults = await AppUtils.pushFiles(appFileList);
+      const pushResults = await pushFiles(appFileList);
       logPushResults(pushResults);
     } catch (e) {
       throw e;
@@ -224,7 +229,7 @@ export async function deploy(args: Sinc.SharedCmdArgs): Promise<void> {
   });
 }
 
-export async function status() {
+export async function status(): Promise<void> {
   try {
     const scopeObj = await getCurrentScope();
     logger.info(`Instance: ${process.env.SN_INSTANCE}`);

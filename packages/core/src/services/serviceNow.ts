@@ -1,9 +1,11 @@
 import { Sinc, SN } from "@sincronia/types";
 import { get, map, isEmpty } from "lodash";
-import { authConnection, baseUrlGQL, connection } from "./connection";
+import { baseUrlGQL, connection } from "./connection";
 import { Tables } from "../configs/constants";
 import { getGqlQuery } from "./graphQL";
-import { RecordItem } from "src/configs/tableOptions";
+import { RecordItem } from "../configs/tableOptions";
+import { AxiosPromise } from "axios";
+import { ConfigManager } from "../configs/config";
 
 type ParamOption = string | { op: string; value: string };
 type SysParams<T = string> = {
@@ -16,8 +18,8 @@ export const snGetTable = async <T extends string>(
   params: SysParams<T>,
   authParams?: Sinc.LoginAnswers
 ): Promise<Record<T, string>[]> => {
-  const c = authParams ? authConnection(authParams) : connection;
-  return get(await c.get(tableApiEndpoint(table, params)), "data.result");
+  const conn = authParams ? connection(authParams) : connection();
+  return get(await conn.get(tableApiEndpoint(table, params)), "data.result");
 };
 
 const tableApiEndpoint = (table: string, params: SysParams): string => {
@@ -53,11 +55,22 @@ export const upsertSNRecord = async (
   });
   if (data.length) {
     const endpoint = `api/now/table/${table}/${data[0].sys_id}`;
-    await connection.put(endpoint, updates);
+    await connection().put(endpoint, updates);
   } else {
     const endpoint = `api/now/table/${table}`;
-    await connection.put(endpoint, { ...params, ...updates });
+    await connection().put(endpoint, { ...params, ...updates });
   }
+};
+
+export const updateRecord = (
+  table: string,
+  recordId: string,
+  fields: Record<string, string>
+): AxiosPromise<any> => {
+  if (table === Tables.AtfStep)
+    throw new Error("ATF steps not currently supported.");
+  const endpoint = `api/now/table/${table}/${recordId}`;
+  return connection().patch(endpoint, fields);
 };
 
 export const getCurrentScope = async (): Promise<SN.ScopeObj> => {
@@ -125,8 +138,8 @@ export const getManifestSN = async (
     }
   >
 ): Promise<Record<string, { list: RecordItem[] }>> => {
-  const res = await connection.post(
-    baseUrlGQL,
+  const res = await connection().post(
+    baseUrlGQL(),
     getGqlQuery(
       map(tablesData, ({ name, fields }) => ({
         table: name,
@@ -137,4 +150,51 @@ export const getManifestSN = async (
     )
   );
   return get(res, "data.data.query");
+};
+
+export const createUpdateSet = async (
+  updateSetName: string
+): Promise<string> => {
+  const endpoint = `api/now/table/${Tables.UpdateSet}`;
+  type UpdateSetCreateResponse = Sinc.SNAPIResponse<SN.UpdateSetRecord>;
+  const res = await connection().post<UpdateSetCreateResponse>(endpoint, {
+    name: updateSetName,
+  });
+  return res.data.result.sys_id;
+};
+
+export const getCurrentUpdateSetChanges = async (): Promise<
+  Record<string, string[]>
+> => {
+  const { updateSetChangeTypes = [] } = await ConfigManager.getUsSincConfig();
+
+  if (!updateSetChangeTypes.length) return {};
+
+  const userId = await getUserSysId();
+
+  const data = await snGetTable(Tables.UserPreference, {
+    sysparm_query: `user=${userId}^name=${Tables.UpdateSet}`,
+    sysparm_fields: ["value"],
+  });
+  const updateSetId = data[0]?.value || "";
+
+  const changesData = await snGetTable(Tables.UpdateXML, {
+    sysparm_query: {
+      update_set: updateSetId,
+      action: { op: "!=", value: "DELETE" },
+      type: { op: "IN", value: updateSetChangeTypes.join(",") },
+    },
+    sysparm_fields: ["name"],
+  });
+
+  const changes: Record<string, string[]> = {};
+  changesData.map(({ name }) => {
+    const nameArray = name.split("_");
+
+    const table = nameArray.slice(0, -1).join("_");
+    const id = nameArray.slice(-1)[0];
+    if (!changes[table]) changes[table] = [];
+    changes[table].push(id);
+  });
+  return changes;
 };

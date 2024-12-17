@@ -20,9 +20,7 @@ export async function startWizard(): Promise<void> {
       ConfigManager.getManifest();
     } catch (e) {
       const scope = await showAppList(apps);
-      if (!scope) {
-        return;
-      }
+      if (!scope) return;
       logger.info("Downloading app...");
       await downloadApp(scope);
     }

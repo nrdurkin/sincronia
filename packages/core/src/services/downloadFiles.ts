@@ -1,9 +1,9 @@
 import { SN } from "@sincronia/types";
 import { keys, map, get, forEach, reduce } from "lodash";
-import { ConfigManager } from "./configs/config";
-import { snGetTable } from "./services/serviceNow";
+import { ConfigManager } from "../configs/config";
+import { snGetTable } from "../services/serviceNow";
 
-export const ng_getMissingFiles = async (
+export const downloadMissingFiles = async (
   missingFiles: SN.MissingFileTableMap
 ): Promise<SN.TableMap> => {
   const currentManifest = await ConfigManager.getManifest();

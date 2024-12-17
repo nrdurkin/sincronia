@@ -6,8 +6,9 @@ import { ConfigManager } from "../configs/config";
 import { logger } from "../cli/Logger";
 import * as fUtils from "./fileUtils";
 import path from "path";
-import { ng_getMissingFiles } from "../downloadFiles";
+import { downloadMissingFiles } from "../services/downloadFiles";
 import { findMissingFiles } from "./findMissingFiles";
+import { Tables } from "../configs/constants";
 
 const generateRecordName = (
   record: RecordItem,
@@ -99,6 +100,11 @@ export const fetchManifest = async (scope: string): Promise<SN.AppManifest> => {
   const { includes, excludes, tableOptions } = ConfigManager.getConfig();
 
   const tables = includes?.filter((t) => !excludes?.includes(t)) || [];
+  if (tables.includes(Tables.AtfStep)) {
+    //https://www.servicenow.com/community/developer-forum/not-able-to-map-values-to-a-glide-var-type-input-field-using/m-p/1983044
+    logger.warn("ATF steps not currently supported.");
+    tables.splice(tables.indexOf(Tables.AtfStep), 1);
+  }
   const tablesData: Record<string, TableInfo> = {};
   tables.forEach((t) => {
     if (tableOptions[t] === undefined) {
@@ -217,14 +223,10 @@ const processTablesInManifest = async (
 };
 
 export const processManifest = async (
-  manifest: SN.AppManifest,
-  forceWrite = false
+  manifest: SN.AppManifest
 ): Promise<void> => {
-  await processTablesInManifest(manifest.tables, forceWrite);
-  await fUtils.writeFileForce(
-    ConfigManager.getManifestPath(),
-    JSON.stringify(manifest, null, 2)
-  );
+  ConfigManager.updateManifest(manifest);
+  await processMissingFiles(manifest);
 };
 
 export const processMissingFiles = async (
@@ -232,7 +234,7 @@ export const processMissingFiles = async (
 ): Promise<void> => {
   try {
     const missing = await findMissingFiles(newManifest);
-    const filesToProcess = await ng_getMissingFiles(missing);
+    const filesToProcess = await downloadMissingFiles(missing);
     await processTablesInManifest(filesToProcess, false);
   } catch (e) {
     throw e;

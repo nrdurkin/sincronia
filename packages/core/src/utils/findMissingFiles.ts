@@ -1,6 +1,6 @@
 import { SN } from "@sincronia/types";
 import * as fUtils from "./fileUtils";
-import { ConfigManager } from "src/configs/config";
+import { ConfigManager } from "../configs/config";
 
 const markFileMissing = (missingObj: SN.MissingFileTableMap) => (
   table: string
